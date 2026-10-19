@@ -215,10 +215,14 @@ export class APILoader extends BaseComponent {
   static async importLibrary(library: string, consumer?: HTMLElement) {
     let googleMaps = APILoader.googleMapsDeferred.value;
     if (!googleMaps) {
-      APILoader.pollForGoogleMaps(
-          /* numRetries= */ 5, /* interval= */ 1000,
-          consumer && getLogger(consumer));
-      googleMaps = await APILoader.googleMapsDeferred.promise;
+      // Only this request fails if polling times out; the shared promise stays
+      // pending so that later requests succeed once the API is configured.
+      googleMaps = await new Promise<typeof google.maps>((resolve, reject) => {
+        APILoader.googleMapsDeferred.promise.then(resolve);
+        APILoader.pollForGoogleMaps(
+            /* numRetries= */ 5, /* interval= */ 1000, reject,
+            consumer && getLogger(consumer));
+      });
     }
     return googleMaps.importLibrary(library);
   }
@@ -237,8 +241,8 @@ export class APILoader extends BaseComponent {
 
   /** @nocollapse */
   private static pollForGoogleMaps(
-      numRetries: number, interval: number, logger?: LoggingController,
-      pollCount = 0) {
+      numRetries: number, interval: number, onTimeout: (error: Error) => void,
+      logger?: LoggingController, pollCount = 0) {
     const googleMaps = getGoogleMaps();
     if (googleMaps) {
       // Display a warning if `google.maps` is not present in the global
@@ -259,10 +263,10 @@ export class APILoader extends BaseComponent {
     } else if (numRetries > 0) {
       window.setTimeout(() => {
         APILoader.pollForGoogleMaps(
-            numRetries - 1, interval, logger, pollCount + 1);
+            numRetries - 1, interval, onTimeout, logger, pollCount + 1);
       }, interval);
     } else {
-      // Throw an error if the Maps JavaScript API is not initialized after
+      // Report an error if the Maps JavaScript API is not initialized after
       // several polling attempts. This should help developers debug scenarios
       // where they forgot to include an API loader or script tag.
       let errorMessage = logger ?
@@ -274,7 +278,7 @@ export class APILoader extends BaseComponent {
       errorMessage += 'Please ensure you have a <gmpx-api-loader> on the ' +
           'page with a valid API key. ' +
           'https://github.com/googlemaps/extended-component-library';
-      throw new Error(errorMessage);
+      onTimeout(new Error(errorMessage));
     }
   }
 }

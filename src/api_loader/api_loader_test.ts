@@ -26,7 +26,16 @@ class TestAPIConsumer extends BaseComponent {
     super.connectedCallback();
     this.coreLibraryPromise = APILoader.importLibrary('core', this) as
         Promise<google.maps.CoreLibrary>;
-    this.coreLibrary = await this.coreLibraryPromise;
+    // Tests assert on a rejection through `coreLibraryPromise`.
+    this.coreLibrary = await this.coreLibraryPromise.catch(() => undefined);
+  }
+}
+
+/** Fails the test if `value` is missing, and narrows its type. */
+function assertExists<T>(
+    value: T|null|undefined, description: string): asserts value is T {
+  if (value == null) {
+    throw new Error(`Expected ${description} to exist.`);
   }
 }
 
@@ -269,37 +278,80 @@ describe('APILoader', () => {
   it('rejects promise when API is requested without a loader', async () => {
     const {consumerEl, scriptLoadSpy, consoleWarnSpy} =
         await prepareState({loaderHTML: html``});
+    assertExists(consumerEl, 'the consumer element');
 
-    await expectAsync((async () => {
-      waitForAnyPolling();
-      return await consumerEl!.coreLibraryPromise;
-    })())
-        .toBeRejectedWithError(
-            '<gmpx-test-api-consumer>: ' +
-            'The Google Maps JavaScript API is required for this element to ' +
-            'function correctly. Please ensure you have a <gmpx-api-loader> ' +
-            'on the page with a valid API key. ' +
-            'https://github.com/googlemaps/extended-component-library');
+    const rejection =
+        expectAsync(consumerEl.coreLibraryPromise)
+            .toBeRejectedWithError(
+                '<gmpx-test-api-consumer>: ' +
+                'The Google Maps JavaScript API is required ' +
+                'for this element to function correctly. ' +
+                'Please ensure you have a <gmpx-api-loader> ' +
+                'on the page with a valid API key. ' +
+                'https://github.com/googlemaps/extended-component-library');
+    waitForAnyPolling();
+
+    await rejection;
     expect(scriptLoadSpy).not.toHaveBeenCalled();
     expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
 
   it('rejects promise when API is requested without an API key', async () => {
     const {consumerEl, scriptLoadSpy, consoleWarnSpy} = await prepareState();
+    assertExists(consumerEl, 'the consumer element');
 
-    await expectAsync((async () => {
-      waitForAnyPolling();
-      return await consumerEl!.coreLibraryPromise;
-    })())
-        .toBeRejectedWithError(
-            '<gmpx-test-api-consumer>: ' +
-            'The Google Maps JavaScript API is required for this element to ' +
-            'function correctly. Please ensure you have a <gmpx-api-loader> ' +
-            'on the page with a valid API key. ' +
-            'https://github.com/googlemaps/extended-component-library');
+    const rejection =
+        expectAsync(consumerEl.coreLibraryPromise)
+            .toBeRejectedWithError(
+                '<gmpx-test-api-consumer>: ' +
+                'The Google Maps JavaScript API is required ' +
+                'for this element to function correctly. ' +
+                'Please ensure you have a <gmpx-api-loader> ' +
+                'on the page with a valid API key. ' +
+                'https://github.com/googlemaps/extended-component-library');
+    waitForAnyPolling();
+
+    await rejection;
     expect(scriptLoadSpy).not.toHaveBeenCalled();
     expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
+
+  it('resolves later requests when an API key is set after a rejection',
+     async () => {
+       const {loaderEl, consumerEl} = await prepareState();
+       assertExists(loaderEl, 'the API loader element');
+       assertExists(consumerEl, 'the consumer element');
+       const rejection =
+           expectAsync(consumerEl.coreLibraryPromise).toBeRejected();
+       waitForAnyPolling();
+       await rejection;
+
+       loaderEl.key = 'TEST_API_KEY';
+       await env.waitForStability();
+
+       const harness = env.fakeGoogleMapsHarness;
+       assertExists(harness, 'the fake Maps SDK');
+       expect(await APILoader.importLibrary('core'))
+           .toBe(harness.libraries['core']);
+     });
+
+  it('resolves later requests when a loader is added after a rejection',
+     async () => {
+       const {consumerEl} = await prepareState({loaderHTML: html``});
+       assertExists(consumerEl, 'the consumer element');
+       const rejection =
+           expectAsync(consumerEl.coreLibraryPromise).toBeRejected();
+       waitForAnyPolling();
+       await rejection;
+
+       env.render(html`<gmpx-api-loader key="TEST_API_KEY"></gmpx-api-loader>`);
+       await env.waitForStability();
+
+       const harness = env.fakeGoogleMapsHarness;
+       assertExists(harness, 'the fake Maps SDK');
+       expect(await APILoader.importLibrary('core'))
+           .toBe(harness.libraries['core']);
+     });
 
   it('resolves with library when API is requested programmatically with loader',
      async () => {
@@ -319,16 +371,16 @@ describe('APILoader', () => {
        const {scriptLoadSpy, consoleWarnSpy} =
            await prepareState({loaderHTML: html``, renderConsumerEl: false});
 
-       await expectAsync((async () => {
-         const libraryPromise = APILoader.importLibrary('core');
-         waitForAnyPolling();
-         return await libraryPromise;
-       })())
-           .toBeRejectedWithError(
-               'APILoader.importLibrary(): Unable to initialize the Google ' +
-               'Maps JavaScript API. Please ensure you have a ' +
-               '<gmpx-api-loader> on the page with a valid API key. ' +
-               'https://github.com/googlemaps/extended-component-library');
+       const rejection =
+           expectAsync(APILoader.importLibrary('core'))
+               .toBeRejectedWithError(
+                   'APILoader.importLibrary(): Unable to initialize the ' +
+                   'Google Maps JavaScript API. Please ensure you have a ' +
+                   '<gmpx-api-loader> on the page with a valid API key. ' +
+                   'https://github.com/googlemaps/extended-component-library');
+       waitForAnyPolling();
+
+       await rejection;
        expect(scriptLoadSpy).not.toHaveBeenCalled();
        expect(consoleWarnSpy).not.toHaveBeenCalled();
      });
