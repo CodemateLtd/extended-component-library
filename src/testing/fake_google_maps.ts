@@ -27,15 +27,6 @@ export class FakeGoogleMapsHarness {
 
   /**
    * Override this function to control the response of a
-   * `google.maps.places.PlacesService.getDetails()` request.
-   */
-  getDetailsHandler = (request: google.maps.places.PlaceDetailsRequest) => ({
-    result: {} as PlaceResult,
-    status: 'OK',
-  });
-
-  /**
-   * Override this function to control the response of a
    * `google.maps.routes.Route.computeRoutes()` request.
    */
   computeRoutesHandler = (request: ComputeRoutesRequest) => Promise.resolve({
@@ -129,15 +120,6 @@ export class FakeGoogleMapsHarness {
         },
 
         PlacesService: class {
-          getDetails(
-              options: google.maps.places.PlaceDetailsRequest,
-              callback: (
-                  a: PlaceResult|null,
-                  b: google.maps.places.PlacesServiceStatus) => void) {
-            const {result, status} = harness.getDetailsHandler(options);
-            callback(result, status as google.maps.places.PlacesServiceStatus);
-          }
-
           findPlaceFromQuery(
               options: google.maps.places.FindPlaceFromQueryRequest,
               callback: (
