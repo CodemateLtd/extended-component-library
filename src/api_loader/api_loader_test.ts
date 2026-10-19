@@ -78,6 +78,30 @@ describe('APILoader', () => {
     jasmine.clock().tick(5000);
   }
 
+  /**
+   * Renders an API loader that runs the real inline bootstrap, with the
+   * bootstrap's script tag captured instead of appended to the document.
+   */
+  async function prepareRealBootstrap(loaderHTML: TemplateResult) {
+    env.importLibrarySpy?.and.callThrough();
+    const appendSpy = spyOn(document.head, 'append');
+    const consoleErrorSpy = spyOn(console, 'error');
+    const root = env.render(loaderHTML);
+    const loaderEl = root.querySelector<APILoader>('gmpx-api-loader');
+    assertExists(loaderEl, 'the API loader element');
+    await env.waitForStability();
+
+    /** Simulates a network failure of the bootstrap's script tag. */
+    function failScript() {
+      const script = appendSpy.calls.mostRecent().args[0];
+      if (!(script instanceof HTMLScriptElement)) {
+        throw new Error('Expected the bootstrap to append a script.');
+      }
+      script.dispatchEvent(new Event('error'));
+    }
+    return {loaderEl, consoleErrorSpy, failScript};
+  }
+
   afterEach(() => {
     APILoader.reset();
   });
@@ -383,5 +407,42 @@ describe('APILoader', () => {
        await rejection;
        expect(scriptLoadSpy).not.toHaveBeenCalled();
        expect(consoleWarnSpy).not.toHaveBeenCalled();
+     });
+
+  it('logs one error when the API script fails to load', async () => {
+    const {consoleErrorSpy, failScript} = await prepareRealBootstrap(
+        html`<gmpx-api-loader key="TEST_API_KEY"></gmpx-api-loader>`);
+    const libraryPromise = APILoader.importLibrary('core');
+
+    failScript();
+
+    await expectAsync(libraryPromise)
+        .toBeRejectedWithError(
+            'The Google Maps JavaScript API could not load.');
+    await env.waitForStability();
+    expect(consoleErrorSpy)
+        .toHaveBeenCalledOnceWith(
+            '<gmpx-api-loader>: ' +
+                'Failed to load the Google Maps JavaScript API.',
+            new Error('The Google Maps JavaScript API could not load.'));
+  });
+
+  it('logs one error when a key is set while a request is polling',
+     async () => {
+       const {loaderEl, consoleErrorSpy, failScript} =
+           await prepareRealBootstrap(
+               html`<gmpx-api-loader></gmpx-api-loader>`);
+       const libraryPromise = APILoader.importLibrary('core');
+       loaderEl.key = 'TEST_API_KEY';
+       await env.waitForStability();
+       jasmine.clock().tick(1000);
+
+       failScript();
+
+       await expectAsync(libraryPromise)
+           .toBeRejectedWithError(
+               'The Google Maps JavaScript API could not load.');
+       await env.waitForStability();
+       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
      });
 });

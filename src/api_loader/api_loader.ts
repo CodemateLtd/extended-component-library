@@ -23,10 +23,21 @@ function getGoogleMaps(): typeof google.maps|undefined {
   }
 }
 
-/** Imports Web Components defined by the Maps JavaScript API. */
-function loadComponentsFromMapsJS(googleMaps: typeof google.maps) {
-  googleMaps.importLibrary('maps');
-  googleMaps.importLibrary('marker');
+/**
+ * Imports Web Components defined by the Maps JavaScript API, logging an error
+ * if they fail to load.
+ */
+function loadComponentsFromMapsJS(
+    googleMaps: typeof google.maps, logger?: LoggingController) {
+  Promise
+      .all([
+        googleMaps.importLibrary('maps'),
+        googleMaps.importLibrary('marker'),
+      ])
+      .catch((error: unknown) => {
+        (logger ?? console)
+            .error('Failed to load the Google Maps JavaScript API.', error);
+      });
 }
 
 /** Returns a `LoggingController` owned by the element, if one exists. */
@@ -191,7 +202,7 @@ export class APILoader extends BaseComponent {
       });
       APILoader.inlineScriptLoaded = true;
       APILoader.googleMapsDeferred.resolve(googleMaps);
-      loadComponentsFromMapsJS(googleMaps);
+      loadComponentsFromMapsJS(googleMaps, this.logger);
     }
   }
 
@@ -243,6 +254,8 @@ export class APILoader extends BaseComponent {
   private static pollForGoogleMaps(
       numRetries: number, interval: number, onTimeout: (error: Error) => void,
       logger?: LoggingController, pollCount = 0) {
+    // Stop if an API loader has initialized the API since polling started.
+    if (APILoader.googleMapsDeferred.value) return;
     const googleMaps = getGoogleMaps();
     if (googleMaps) {
       // Display a warning if `google.maps` is not present in the global
@@ -259,7 +272,7 @@ export class APILoader extends BaseComponent {
                 '(https://goo.gle/js-api-loading) instead.');
       }
       APILoader.googleMapsDeferred.resolve(googleMaps);
-      loadComponentsFromMapsJS(googleMaps);
+      loadComponentsFromMapsJS(googleMaps, logger);
     } else if (numRetries > 0) {
       window.setTimeout(() => {
         APILoader.pollForGoogleMaps(
