@@ -17,6 +17,10 @@ export const APILoader = createComponent({
   tagName: 'gmpx-api-loader',
   elementClass: APILoaderWC,
   react: React,
+  events: {
+    'onLoad': 'gmpx-load' as EventName<Event>,
+    'onRequestError': 'gmpx-requesterror' as EventName<RequestErrorEvent>,
+  },
 });
 (APILoader as any).importLibrary = APILoaderWC.importLibrary;
 

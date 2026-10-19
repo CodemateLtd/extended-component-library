@@ -12,6 +12,7 @@ import {when} from 'lit/directives/when.js';
 
 import {BaseComponent} from '../base/base_component.js';
 import {ATTRIBUTION_SOURCE_ID, LIBRARY_VERSION} from '../base/constants.js';
+import {RequestErrorEvent} from '../base/events.js';
 import {Environment} from '../testing/environment.js';
 
 import {APILoader} from './api_loader.js';
@@ -444,5 +445,44 @@ describe('APILoader', () => {
                'The Google Maps JavaScript API could not load.');
        await env.waitForStability();
        expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+     });
+
+  it('dispatches a load event and resolves `loaded` when the API loads',
+     async () => {
+       const {loaderEl} = await prepareState({renderConsumerEl: false});
+       assertExists(loaderEl, 'the API loader element');
+       const loadSpy = jasmine.createSpy('gmpx-load');
+       const errorSpy = jasmine.createSpy('gmpx-requesterror');
+       loaderEl.addEventListener('gmpx-load', loadSpy);
+       loaderEl.addEventListener('gmpx-requesterror', errorSpy);
+
+       loaderEl.key = 'TEST_API_KEY';
+
+       await expectAsync(loaderEl.loaded).toBeResolved();
+       expect(loadSpy).toHaveBeenCalledOnceWith(jasmine.any(Event));
+       expect(errorSpy).not.toHaveBeenCalled();
+     });
+
+  it('dispatches an error event and rejects `loaded` when the API fails',
+     async () => {
+       const {loaderEl, importLibrarySpy} =
+           await prepareState({renderConsumerEl: false});
+       assertExists(loaderEl, 'the API loader element');
+       const error =
+           new Error('The Google Maps JavaScript API could not load.');
+       importLibrarySpy.and.rejectWith(error);
+       spyOn(console, 'error');
+       const loadSpy = jasmine.createSpy('gmpx-load');
+       const errorSpy = jasmine.createSpy('gmpx-requesterror');
+       loaderEl.addEventListener('gmpx-load', loadSpy);
+       loaderEl.addEventListener('gmpx-requesterror', errorSpy);
+
+       loaderEl.key = 'TEST_API_KEY';
+
+       await expectAsync(loaderEl.loaded).toBeRejectedWith(error);
+       expect(errorSpy).toHaveBeenCalledOnceWith(
+           jasmine.objectContaining({error}));
+       expect(errorSpy.calls.first().args[0]).toBeInstanceOf(RequestErrorEvent);
+       expect(loadSpy).not.toHaveBeenCalled();
      });
 });
