@@ -11,4 +11,3 @@ Places API [Autocomplete documentation](https://developers.google.com/maps/docum
 - [SKU: Autocomplete (included with Place Details) – Per Session](https://developers.google.com/maps/billing-and-pricing/pricing#ac-with-details-session)
 - [SKU: Place Details](https://developers.google.com/maps/billing-and-pricing/pricing#places-details)
 - [SKU: Basic Data](https://developers.google.com/maps/billing-and-pricing/pricing#basic-data)
-- [SKU: Find Place](https://developers.google.com/maps/billing-and-pricing/pricing#find-place) (fallback query)
