@@ -266,51 +266,39 @@ describe('makePlaceFromPlaceResult', () => {
     expect(fetchFieldsSpy).toHaveBeenCalledOnceWith({fields: ['servesLunch']});
   });
 
-  it('uses the Places Details API when Place doesn\'t support fetchFields',
-     async () => {
-       const fetchFieldsSpy =
-           jasmine.createSpy('fetchFields')
-               .and.rejectWith(new Error(
-                   'Place.prototype.fetchFields() is not available, try the beta channel.'));
-       const fakeGetDetails =
-           (options: google.maps.places.PlaceDetailsRequest,
-            callback: (
-                a: PlaceResult|null,
-                b: google.maps.places.PlacesServiceStatus) => void) => {
-             callback(
-                 {price_level: 2},
-                 'OK' as google.maps.places.PlacesServiceStatus);
-           };
-       const placeDetailsSpy =
-           jasmine.createSpy('placeDetails').and.callFake(fakeGetDetails);
-       const fakePlacesLibrary = {
-         Place: class {
-           constructor(options: google.maps.places.PlaceOptions) {
-             return makeFakePlace(
-                 {id: options.id, fetchFields: fetchFieldsSpy});
-           }
-         },
+  it('rejects with the error from Place.fetchFields()', async () => {
+    const error = new Error('Place.prototype.fetchFields() is not available.');
+    const fetchFieldsSpy =
+        jasmine.createSpy('fetchFields').and.rejectWith(error);
+    const getDetailsSpy =
+        jasmine.createSpy('getDetails')
+            .and.callFake(
+                (request: google.maps.places.PlaceDetailsRequest,
+                 callback: (
+                     a: PlaceResult|null,
+                     b: google.maps.places.PlacesServiceStatus) => void) => {
+                  callback({}, 'OK' as google.maps.places.PlacesServiceStatus);
+                });
+    const fakePlacesLibrary = {
+      Place: class {
+        constructor(options: google.maps.places.PlaceOptions) {
+          return makeFakePlace({id: options.id, fetchFields: fetchFieldsSpy});
+        }
+      },
 
-         PlacesService: class {
-           getDetails = placeDetailsSpy;
-         }
-       };
-       env.importLibrarySpy?.and.resolveTo(fakePlacesLibrary);
+      PlacesService: class {
+        getDetails = getDetailsSpy;
+      }
+    };
+    env.importLibrarySpy?.and.resolveTo(fakePlacesLibrary);
 
-       const place = await makePlaceFromPlaceResult(
-           {place_id: '123', url: 'http://foo/bar', rating: 3.5});
+    const place = await makePlaceFromPlaceResult({place_id: '123'});
 
-       // NOTE: `attributions` -> `html_attributions` should *not* be requested,
-       // as the Places Details API considers it an invalid field mask.
-       await place.fetchFields(
-           {fields: ['rating', 'priceLevel', 'attributions']});
-       expect(placeDetailsSpy)
-           .toHaveBeenCalledOnceWith(
-               {placeId: '123', fields: ['price_level']},
-               jasmine.any(Function));
-       expect(place.priceLevel)
-           .toEqual('MODERATE' as google.maps.places.PriceLevel);
-     });
+    await expectAsync(place.fetchFields({
+      fields: ['priceLevel']
+    })).toBeRejectedWith(error);
+    expect(getDetailsSpy).not.toHaveBeenCalled();
+  });
 
   it('calls the built-in isOpen method when available on Place', async () => {
     const isOpenSpy = jasmine.createSpy('isOpen').and.resolveTo(true);
