@@ -18,8 +18,8 @@ import {WebFont, WebFontController} from '../base/web_font_controller.js';
 import {LAT_LNG_LITERAL_ATTRIBUTE_CONVERTER, STRING_ARRAY_ATTRIBUTE_CONVERTER} from '../utils/attribute_converters.js';
 import {getDeepActiveElement} from '../utils/deep_element_access.js';
 import {Deferred} from '../utils/deferred.js';
-import type {Place, PlaceResult, PlacesLibrary} from '../utils/googlemaps_types.js';
-import {isNotAvailableError, makePlaceFromPlaceResult, mapPlaceFieldsToPlaceResultFields} from '../utils/place_utils.js';
+import type {Place, PlacesLibrary} from '../utils/googlemaps_types.js';
+import {makePlaceFromPlaceResult} from '../utils/place_utils.js';
 
 type Autocomplete = google.maps.places.Autocomplete;
 type AutocompleteOptions = google.maps.places.AutocompleteOptions;
@@ -410,55 +410,10 @@ export class PlacePicker extends BaseComponent {
       fields: ['id'],
       locationBias: this.autocomplete.value?.getBounds(),
     };
-    let places;
-    try {
-      ({places} = await OrigPlace.searchByText(searchRequest));
-    } catch (error: unknown) {
-      if (isNotAvailableError(error, 'searchByText()')) {
-        // `Place.searchByText()` isn't available in GA; use
-        // `PlacesService.findPlaceFromQuery()` as a fallback.
-        const findRequest = {
-          query,
-          fields: ['id'],
-          locationBias: this.autocomplete.value?.getBounds(),
-        };
-        const results = await this.searchWithFindPlaceFromQuery(findRequest);
-        places = [];
-        for (const placeResult of results) {
-          places.push(await makePlaceFromPlaceResult(placeResult, this));
-          break;
-        }
-      } else {
-        throw error;
-      }
-    }
+    const {places} = await OrigPlace.searchByText(searchRequest);
     if (!places.length) return null;
     await places[0].fetchFields({fields: [...PLACE_DATA_FIELDS]});
     return places[0] as Place;
-  }
-
-  /** Looks up a Place using the GA API. */
-  private async searchWithFindPlaceFromQuery(
-      request: google.maps.places.FindPlaceFromQueryRequest):
-      Promise<PlaceResult[]> {
-    const {PlacesService} = await APILoader.importLibrary('places', this) as
-        google.maps.PlacesLibrary;
-    const service = new PlacesService(document.createElement('div'));
-    return new Promise((resolve, reject) => {
-      service.findPlaceFromQuery(
-          {
-            ...request,
-            fields: mapPlaceFieldsToPlaceResultFields(
-                request.fields as Array<keyof Place>)
-          },
-          (results, status) => {
-            if (results && status === 'OK') {
-              resolve(results);
-            } else {
-              reject(status);
-            }
-          });
-    });
   }
 
   private handleClear() {

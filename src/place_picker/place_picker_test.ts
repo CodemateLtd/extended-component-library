@@ -13,7 +13,6 @@ import {FakeMapElement} from '../testing/fake_gmp_components.js';
 import {FakeLatLng} from '../testing/fake_lat_lng.js';
 import {makeFakePlace} from '../testing/fake_place.js';
 import {getDeepActiveElement} from '../utils/deep_element_access.js';
-import type {PlaceResult} from '../utils/googlemaps_types.js';
 
 import {PLACE_DATA_FIELDS, PLACE_RESULT_DATA_FIELDS, PlacePicker} from './place_picker.js';
 
@@ -323,43 +322,6 @@ describe('PlacePicker', () => {
     expect(input.value).toBe('123 Main St, City Name, CA 00000');
   });
 
-  it('sets value from fallback GA API when Place.searchByText is not available',
-     async () => {
-       env.fakeGoogleMapsHarness!.autocompleteSpy.getBounds.and.returnValue(
-           FAKE_BOUNDS);
-       const {picker, input, searchButton, clearButton} = await prepareState();
-       (env.fakeGoogleMapsHarness!.searchByTextHandler as jasmine.Spy)
-           .and.throwError(new Error(
-               'google.maps.places.Place.searchByText() is not available in the SDK!'));
-       spyOn(env.fakeGoogleMapsHarness!, 'findPlaceFromQueryGAHandler')
-           .and.returnValue({
-             results: [{
-               place_id: 'ga123',
-               name: 'City Hall',
-               formatted_address: '123 Main St, City Name, CA 00000'
-             } as PlaceResult],
-             status: 'OK'
-           });
-
-       await enterQueryText(input, '123 Main St');
-       searchButton.click();
-       await env.waitForStability();
-       await env.waitForStability();  // Seems like this takes two updates
-
-       expect(env.fakeGoogleMapsHarness!.findPlaceFromQueryGAHandler)
-           .toHaveBeenCalledOnceWith({
-             query: '123 Main St',
-             fields: ['place_id'],
-             locationBias: FAKE_BOUNDS,
-           });
-
-       const place = picker.value;
-       expect(place!.id).toBe('ga123');
-       expect(searchButton.disabled).toBeTrue();
-       expect(clearButton.hidden).toBeFalse();
-       expect(input.value).toBe('City Hall, 123 Main St, City Name, CA 00000');
-     });
-
   it(`sets value to null if no search results and fires event`, async () => {
     const {picker, input, searchButton, clearButton} = await prepareState();
 
@@ -399,6 +361,28 @@ describe('PlacePicker', () => {
         .toHaveBeenCalledOnceWith(
             jasmine.objectContaining({type: 'gmpx-requesterror', error}));
   });
+
+  it(`dispatches request error event when searchByText is not available`,
+     async () => {
+       const {picker, input, searchButton, clearButton} = await prepareState();
+
+       await enterQueryText(input, '123 Main St');
+
+       const error = new Error(
+           'google.maps.places.Place.searchByText() is not available in the SDK!');
+       (env.fakeGoogleMapsHarness!.searchByTextHandler as jasmine.Spy)
+           .and.throwError(error);
+       const dispatchEventSpy = spyOn(picker, 'dispatchEvent');
+       searchButton.click();
+       await env.waitForStability();
+
+       expect(picker.value).toBeUndefined();
+       expect(searchButton.disabled).toBeTrue();
+       expect(clearButton.hidden).toBeFalse();
+       expect(dispatchEventSpy)
+           .toHaveBeenCalledOnceWith(
+               jasmine.objectContaining({type: 'gmpx-requesterror', error}));
+     });
 
   it(`moves focus to clear button when searching via keyboard`, async () => {
     const {input, searchButton, clearButton} = await prepareState();

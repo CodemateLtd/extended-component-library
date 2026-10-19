@@ -51,14 +51,6 @@ export class FakeGoogleMapsHarness {
       makeFakeRouteMatrixResponse(request);
 
   /**
-   * Override this function to control the response of a
-   * `google.maps.places.PlacesService.findPlaceFromQuery()` request.
-   */
-  findPlaceFromQueryGAHandler =
-      (request: google.maps.places.FindPlaceFromQueryRequest) =>
-          ({results: [] as PlaceResult[], status: 'OK'});
-
-  /**
    * Override this function to control the response of `Place.searchByText()`.
    */
   searchByTextHandler = (request: SearchByTextRequest) =>
@@ -136,16 +128,6 @@ export class FakeGoogleMapsHarness {
                   b: google.maps.places.PlacesServiceStatus) => void) {
             const {result, status} = harness.getDetailsHandler(options);
             callback(result, status as google.maps.places.PlacesServiceStatus);
-          }
-
-          findPlaceFromQuery(
-              options: google.maps.places.FindPlaceFromQueryRequest,
-              callback: (
-                  a: PlaceResult[],
-                  b: google.maps.places.PlacesServiceStatus) => void) {
-            const {results, status} =
-                harness.findPlaceFromQueryGAHandler(options);
-            callback(results, status as google.maps.places.PlacesServiceStatus);
           }
         }
       },

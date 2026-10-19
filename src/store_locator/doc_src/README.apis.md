@@ -31,7 +31,6 @@ Please be sure to check this documentation for additional requirements and recom
 #### Pricing
 
 - [SKU: Autocomplete (included with Place Details) – Per Session](https://developers.google.com/maps/billing-and-pricing/pricing#ac-with-details-session)
-- [SKU: Find Place](https://developers.google.com/maps/billing-and-pricing/pricing#find-place) (fallback query)
 - [SKU: Place Details](https://developers.google.com/maps/billing-and-pricing/pricing#places-details)
 - [SKU: Basic Data](https://developers.google.com/maps/billing-and-pricing/pricing#basic-data)
 - [SKU: Contact Data](https://developers.google.com/maps/billing-and-pricing/pricing#contact-data)
