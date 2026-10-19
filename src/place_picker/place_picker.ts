@@ -443,6 +443,10 @@ export class PlacePicker extends BaseComponent {
     autocompleteElement.addEventListener('gmp-select', (event) => {
       this.handleSelect(event);
     });
+    autocompleteElement.addEventListener('gmp-error', (event) => {
+      const requestErrorEvent = new RequestErrorEvent(event);
+      this.dispatchEvent(requestErrorEvent);
+    });
     autocompleteElement.addEventListener('input', () => {
       this.handleInput(autocompleteElement.value);
     });

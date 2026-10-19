@@ -8,6 +8,7 @@
 
 import {html, TemplateResult} from 'lit';
 
+import {RequestErrorEvent} from '../base/events.js';
 import {Environment} from '../testing/environment.js';
 import {FakeMapElement, FakePlaceAutocompleteElement} from '../testing/fake_gmp_components.js';
 import {makeFakePlace} from '../testing/fake_place.js';
@@ -322,6 +323,24 @@ describe('PlacePicker', () => {
         .toBeNull();
     expect(picker.getBoundingClientRect().height).toBeGreaterThan(0);
   });
+
+  it(`dispatches request error event when the widget's request fails`,
+     async () => {
+       const {picker, autocomplete} = await prepareState();
+
+       const dispatchEventSpy = spyOn(picker, 'dispatchEvent');
+       const errorEvent = new Event('gmp-error');
+       autocomplete.dispatchEvent(errorEvent);
+
+       expect(dispatchEventSpy)
+           .toHaveBeenCalledOnceWith(
+               jasmine.objectContaining({type: 'gmpx-requesterror'}));
+       const [dispatchedEvent] = dispatchEventSpy.calls.mostRecent().args;
+       if (!(dispatchedEvent instanceof RequestErrorEvent)) {
+         throw new Error('Expected a RequestErrorEvent');
+       }
+       expect(dispatchedEvent.error).toBe(errorEvent);
+     });
 
   it(`sets value to undefined when place's cleared & fires event`, async () => {
     const {picker, autocomplete, input, searchButton, clearButton} =
