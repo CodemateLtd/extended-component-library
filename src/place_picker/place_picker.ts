@@ -17,12 +17,13 @@ import {LocalizationController} from '../base/localization_controller.js';
 import {WebFont, WebFontController} from '../base/web_font_controller.js';
 import {LAT_LNG_LITERAL_ATTRIBUTE_CONVERTER, STRING_ARRAY_ATTRIBUTE_CONVERTER} from '../utils/attribute_converters.js';
 import {getDeepActiveElement} from '../utils/deep_element_access.js';
-import {Deferred} from '../utils/deferred.js';
-import type {Place, PlaceResult, PlacesLibrary} from '../utils/googlemaps_types.js';
+import type {LatLngBounds, Place, PlaceResult, PlacesLibrary} from '../utils/googlemaps_types.js';
 import {isNotAvailableError, makePlaceFromPlaceResult, mapPlaceFieldsToPlaceResultFields} from '../utils/place_utils.js';
 
-type Autocomplete = google.maps.places.Autocomplete;
-type AutocompleteOptions = google.maps.places.AutocompleteOptions;
+type PlaceAutocompleteElement = google.maps.places.PlaceAutocompleteElement;
+type PlaceAutocompleteElementOptions =
+    google.maps.places.PlaceAutocompleteElementOptions;
+type PlacePredictionSelectEvent = google.maps.places.PlacePredictionSelectEvent;
 
 /** Data field names in a `Place` that are fetched by Place Picker. */
 export const PLACE_DATA_FIELDS = Object.freeze([
@@ -43,7 +44,12 @@ export const PLACE_DATA_FIELDS = Object.freeze([
   'viewport',
 ] as const);
 
-/** Data field names in a `PlaceResult` that are fetched by Place Picker. */
+/**
+ * Data field names in a `PlaceResult` that correspond to `PLACE_DATA_FIELDS`.
+ *
+ * @deprecated Place Picker no longer fetches `PlaceResult` data. Use
+ * `PLACE_DATA_FIELDS` instead.
+ */
 export const PLACE_RESULT_DATA_FIELDS = Object.freeze([
   'address_component',
   'adr_address',
@@ -103,6 +109,12 @@ export class PlacePicker extends BaseComponent {
     .container {
       color: ${GMPX_COLOR_ON_SURFACE};
       font: ${GMPX_FONT_BODY};
+      /*
+       * Reserve the input's height (padding, a line of text and borders) so
+       * the picker keeps its size while the autocomplete widget loads.
+       */
+      min-height: calc(${GMPX_FONT_SIZE_BASE} *
+                       ${SPACING_MULTIPLIER * 2 + 1.25} + 2px);
       position: relative;
     }
 
@@ -118,26 +130,29 @@ export class PlacePicker extends BaseComponent {
       font-size: inherit;
     }
 
-    input {
+    gmp-place-autocomplete {
       background-color: ${GMPX_COLOR_SURFACE};
       border: 1px solid #80868b;
       border-radius: 4px;
-      color: ${GMPX_COLOR_ON_SURFACE};
       box-sizing: border-box;
+      color: ${GMPX_COLOR_ON_SURFACE};
+      color-scheme: light;
       font-family: inherit;
       font-size: inherit;
-      padding: calc(${GMPX_FONT_SIZE_BASE} * ${SPACING_MULTIPLIER})
-               calc(${GMPX_FONT_SIZE_BASE} * ${SPACING_MULTIPLIER * 2 + 1});
       width: 100%;
     }
 
-    input:focus {
+    gmp-place-autocomplete:focus-within {
       outline: 2px solid ${GMPX_COLOR_PRIMARY};
     }
 
-    input::placeholder {
-      color: ${GMPX_COLOR_ON_SURFACE};
-      opacity: 0.5;
+    gmp-place-autocomplete::part(focus-ring) {
+      display: none;
+    }
+
+    gmp-place-autocomplete::part(input) {
+      padding: calc(${GMPX_FONT_SIZE_BASE} * ${SPACING_MULTIPLIER})
+               calc(${GMPX_FONT_SIZE_BASE} * ${SPACING_MULTIPLIER * 2 + 1});
     }
 
     button:not([hidden]) {
@@ -164,8 +179,8 @@ export class PlacePicker extends BaseComponent {
   };
 
   /**
-   * Restricts predictions to up to five countries identified by their ISO
-   * 3166-1 Alpha-2 country codes, case insensitive ('us', 'br', 'au', etc.).
+   * Restricts predictions to up to 15 countries or regions identified by their
+   * CLDR two-character region codes ('us', 'br', 'au', etc.).
    *
    * Multiple country codes can be specified in the attribute as a set of
    * space-separated tokens (for example, "us ca").
@@ -177,6 +192,9 @@ export class PlacePicker extends BaseComponent {
    * The HTML id of a `<gmp-map>` element on the page that Place Autocomplete
    * should bind to for location biasing. Note that the map need not be a parent
    * of the current element.
+   *
+   * While bound, the map's viewport takes precedence over `location-bias` and
+   * `radius`.
    */
   @property({attribute: 'for-map', reflect: true, type: String})
   forMap?: string;
@@ -205,8 +223,8 @@ export class PlacePicker extends BaseComponent {
   @property({reflect: true, type: Number}) radius?: number;
 
   /**
-   * If true, only predictions that are within the specified location/radius
-   * or map viewport will be returned.
+   * If true, only predictions that are within the map viewport, or within the
+   * rectangle that encloses the specified location/radius, will be returned.
    *
    * Setting this property to false (which is the default) will make the results
    * biased towards, but not restricted to, places contained within the bounds.
@@ -216,9 +234,12 @@ export class PlacePicker extends BaseComponent {
 
   /**
    * The type of predictions to return. Some examples include “restaurant”,
-   * “country” and “address”. This property supports any one type found in
-   * Tables 1~3 of [Place
-   * Types](https://developers.google.com/maps/documentation/javascript/supported_types).
+   * “country” and “geocode”. This property supports any one type found in
+   * Table A or Table B of [Place
+   * Types](https://developers.google.com/maps/documentation/javascript/place-types),
+   * or one of the type collections “(regions)” and “(cities)”. Legacy type
+   * collections that are not in those tables, such as “address”, are not
+   * supported.
    *
    * If no type is specified, predictions of all types will be returned.
    */
@@ -242,7 +263,8 @@ export class PlacePicker extends BaseComponent {
   @state() private disableSearch = true;
   @state() private hideClearButton = true;
 
-  @query('input') private readonly inputElement?: HTMLInputElement;
+  @state() private autocompleteElement?: PlaceAutocompleteElement;
+  @state() private mapBounds?: LatLngBounds;
 
   @query('.clear-button')
   private readonly clearButtonElement?: HTMLButtonElement;
@@ -254,7 +276,14 @@ export class PlacePicker extends BaseComponent {
   protected readonly fontLoader = new WebFontController(
       this, [WebFont.GOOGLE_SANS_TEXT, WebFont.MATERIAL_SYMBOLS_OUTLINED]);
 
-  private readonly autocomplete = new Deferred<Autocomplete>();
+  private mapBoundsListener?: google.maps.MapsEventListener;
+
+  /**
+   * Whether the user has moved through the predictions with arrow keys since
+   * they last typed or pressed Escape, in which case Enter selects the
+   * highlighted prediction instead of searching.
+   */
+  private predictionsNavigated = false;
 
   protected override willUpdate(changedProperties: PropertyValues) {
     if (changedProperties.has(/* @state */ 'disableSearch') &&
@@ -265,7 +294,7 @@ export class PlacePicker extends BaseComponent {
     if (changedProperties.has(/* @state */ 'hideClearButton') &&
         this.hideClearButton && this.focusController.isKeyboardNavigating &&
         getDeepActiveElement() === this.clearButtonElement) {
-      this.inputElement?.focus();
+      this.autocompleteElement?.focus();
     }
   }
 
@@ -274,10 +303,7 @@ export class PlacePicker extends BaseComponent {
   protected override render() {
     return html`
       <div class="container">
-        <input
-          @input=${this.handleInput}
-          .placeholder=${this.placeholder ?? ''}
-        />
+        ${this.autocompleteElement}
         <div class="overlay">
           <button
             aria-label=${this.getMsg('PLACE_SEARCH_ARIA_LABEL')}
@@ -307,14 +333,14 @@ export class PlacePicker extends BaseComponent {
   }
 
   protected override firstUpdated() {
-    this.initializeAutocomplete(this.inputElement!);
+    this.initializeAutocomplete();
   }
 
   protected override async updated(changedProperties: PropertyValues) {
-    if (this.autocomplete.value &&
+    const {autocompleteElement} = this;
+    if (autocompleteElement &&
         this.shouldUpdateAutocompleteOptions(changedProperties)) {
-      const options = await this.makeAutocompleteOptions();
-      this.autocomplete.value.setOptions(options);
+      Object.assign(autocompleteElement, await this.makeAutocompleteOptions());
     }
     if (changedProperties.has('forMap') && this.forMap) {
       const map = await this.getMapById(this.forMap);
@@ -330,8 +356,11 @@ export class PlacePicker extends BaseComponent {
    * biased towards the map’s viewport.
    */
   async bindTo(map: google.maps.Map) {
-    const autocomplete = await this.autocomplete.promise;
-    autocomplete.bindTo('bounds', map);
+    this.mapBoundsListener?.remove();
+    this.mapBounds = map.getBounds() ?? undefined;
+    this.mapBoundsListener = map.addListener('bounds_changed', () => {
+      this.mapBounds = map.getBounds() ?? undefined;
+    });
   }
 
   /**
@@ -353,45 +382,74 @@ export class PlacePicker extends BaseComponent {
 
   private shouldUpdateAutocompleteOptions(changedProperties: PropertyValues):
       boolean {
-    return changedProperties.has('country') ||
+    return changedProperties.has(/* @state */ 'autocompleteElement') ||
+        changedProperties.has('country') ||
         changedProperties.has('locationBias') ||
+        changedProperties.has(/* @state */ 'mapBounds') ||
+        changedProperties.has('placeholder') ||
         changedProperties.has('radius') ||
         changedProperties.has('strictBounds') || changedProperties.has('type');
   }
 
-  private async makeAutocompleteOptions(): Promise<AutocompleteOptions> {
-    const {country, locationBias, radius, strictBounds} = this;
-    let bounds;
-    if (locationBias && radius) {
-      const {Circle} =
-          await APILoader.importLibrary('maps', this) as typeof google.maps;
-      bounds =
-          new Circle({center: locationBias, radius}).getBounds() ?? undefined;
+  /** The circle described by `locationBias` and `radius`, if both are set. */
+  private get circle(): google.maps.CircleLiteral|undefined {
+    const {locationBias: center, radius} = this;
+    return center && radius ? {center, radius} : undefined;
+  }
+
+  /**
+   * The area that predictions and searches are biased towards: the bound
+   * map's viewport, or else the circle described by `locationBias` and
+   * `radius`.
+   */
+  private get searchArea(): LatLngBounds|google.maps.CircleLiteral|undefined {
+    return this.mapBounds ?? this.circle;
+  }
+
+  private async makeAutocompleteOptions():
+      Promise<PlaceAutocompleteElementOptions> {
+    const {country, placeholder, searchArea, strictBounds, type} = this;
+    let locationRestriction = null;
+    if (strictBounds) {
+      // Place Autocomplete can only be restricted to a rectangle.
+      locationRestriction =
+          this.mapBounds ?? await this.getCircleBounds() ?? null;
     }
     return {
-      bounds,
-      componentRestrictions: country ? {country} : undefined,
-      fields: [...PLACE_RESULT_DATA_FIELDS],
-      strictBounds,
-      types: this.type ? [this.type] : [],
+      includedPrimaryTypes: type ? [type] : null,
+      includedRegionCodes: country ?? null,
+      locationBias: strictBounds ? null : searchArea ?? null,
+      locationRestriction,
+      placeholder: placeholder ?? null,
     };
   }
 
-  private async initializeAutocomplete(inputElement: HTMLInputElement) {
-    const {Autocomplete} = await APILoader.importLibrary('places', this) as
+  /** Returns the rectangle that encloses `circle`, if there is one. */
+  private async getCircleBounds(): Promise<LatLngBounds|null> {
+    const {circle} = this;
+    if (!circle) return null;
+    const {Circle} =
+        await APILoader.importLibrary('maps', this) as typeof google.maps;
+    return new Circle(circle).getBounds();
+  }
+
+  private async initializeAutocomplete() {
+    const {PlaceAutocompleteElement} =
+        await APILoader.importLibrary('places', this) as
         typeof google.maps.places;
-    const autocomplete =
-        new Autocomplete(inputElement, await this.makeAutocompleteOptions());
-    autocomplete.addListener('place_changed', async () => {
-      const result = autocomplete.getPlace();
-      if (result?.place_id) {
-        this.disableSearch = true;
-        this.valueInternal = await makePlaceFromPlaceResult(result, this);
-      } else {
-        await this.handleSearch();
-      }
+    // The picker draws its own search and clear buttons over the widget.
+    const autocompleteElement =
+        new PlaceAutocompleteElement({noClearButton: true, noInputIcon: true});
+    autocompleteElement.addEventListener('gmp-select', (event) => {
+      this.handleSelect(event);
     });
-    this.autocomplete.resolve(autocomplete);
+    autocompleteElement.addEventListener('input', () => {
+      this.handleInput(autocompleteElement.value);
+    });
+    autocompleteElement.addEventListener('keydown', (event) => {
+      this.handleKeydown(event);
+    });
+    this.autocompleteElement = autocompleteElement;
   }
 
   /**
@@ -408,7 +466,7 @@ export class PlacePicker extends BaseComponent {
     const searchRequest = {
       textQuery: query,
       fields: ['id'],
-      locationBias: this.autocomplete.value?.getBounds(),
+      locationBias: this.searchArea,
     };
     let places;
     try {
@@ -420,7 +478,7 @@ export class PlacePicker extends BaseComponent {
         const findRequest = {
           query,
           fields: ['id'],
-          locationBias: this.autocomplete.value?.getBounds(),
+          locationBias: this.searchArea,
         };
         const results = await this.searchWithFindPlaceFromQuery(findRequest);
         places = [];
@@ -462,14 +520,15 @@ export class PlacePicker extends BaseComponent {
   }
 
   private handleClear() {
-    this.inputElement!.value = '';
+    if (this.autocompleteElement) this.autocompleteElement.value = '';
     this.valueInternal = undefined;
     this.disableSearch = true;
     this.hideClearButton = true;
   }
 
-  private handleInput(e: {target: HTMLInputElement}) {
-    if (!e.target.value) {
+  private handleInput(text: string) {
+    this.predictionsNavigated = false;
+    if (!text) {
       this.handleClear();
     } else {
       this.disableSearch = false;
@@ -477,12 +536,39 @@ export class PlacePicker extends BaseComponent {
     }
   }
 
+  private handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      this.predictionsNavigated = true;
+    } else if (event.key === 'Escape') {
+      this.predictionsNavigated = false;
+    } else if (
+        event.key === 'Enter' && !event.isComposing &&
+        !this.predictionsNavigated) {
+      this.handleSearch();
+    }
+  }
+
+  private async handleSelect(event: PlacePredictionSelectEvent) {
+    this.predictionsNavigated = false;
+    this.disableSearch = true;
+    this.hideClearButton = false;
+    const place = event.placePrediction.toPlace();
+    try {
+      await place.fetchFields({fields: [...PLACE_DATA_FIELDS]});
+      this.valueInternal = place;
+    } catch (error: unknown) {
+      const requestErrorEvent = new RequestErrorEvent(error);
+      this.dispatchEvent(requestErrorEvent);
+    }
+  }
+
   private async handleSearch() {
-    if (this.disableSearch || !this.inputElement?.value) return;
+    const query = this.autocompleteElement?.value;
+    if (this.disableSearch || !query) return;
 
     this.disableSearch = true;
     try {
-      this.valueInternal = await this.search(this.inputElement.value);
+      this.valueInternal = await this.search(query);
       if (this.valueInternal) this.updateInputTextFromPlace(this.valueInternal);
     } catch (error: unknown) {
       const requestErrorEvent = new RequestErrorEvent(error);
@@ -501,6 +587,8 @@ export class PlacePicker extends BaseComponent {
     } else {
       newText = place.displayName ?? place.formattedAddress ?? '';
     }
-    if (newText) this.inputElement!.value = newText;
+    if (newText && this.autocompleteElement) {
+      this.autocompleteElement.value = newText;
+    }
   }
 }
