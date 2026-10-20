@@ -5,8 +5,8 @@
   "license": "Apache-2.0",
   "description": "Sample app demonstrating use of the Extended Component Library in vanilla JS/HTML.",
   "scripts": {
-    "prestart": "chmod +x use_local_library.sh && ./use_local_library.sh",
-    "start": "wds --port $PORT"
+    "start": "wds --port $PORT",
+    "test": "node --test web_dev_server_node_test.mjs"
   },
   "type": "module",
   "devDependencies": {
