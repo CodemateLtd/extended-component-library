@@ -12,6 +12,7 @@ import {when} from 'lit/directives/when.js';
 
 import {BaseComponent} from '../base/base_component.js';
 import {ATTRIBUTION_SOURCE_ID, LIBRARY_VERSION} from '../base/constants.js';
+import {RequestErrorEvent} from '../base/events.js';
 import {Environment} from '../testing/environment.js';
 
 import {APILoader} from './api_loader.js';
@@ -26,7 +27,16 @@ class TestAPIConsumer extends BaseComponent {
     super.connectedCallback();
     this.coreLibraryPromise = APILoader.importLibrary('core', this) as
         Promise<google.maps.CoreLibrary>;
-    this.coreLibrary = await this.coreLibraryPromise;
+    // Tests assert on a rejection through `coreLibraryPromise`.
+    this.coreLibrary = await this.coreLibraryPromise.catch(() => undefined);
+  }
+}
+
+/** Fails the test if `value` is missing, and narrows its type. */
+function assertExists<T>(
+    value: T|null|undefined, description: string): asserts value is T {
+  if (value == null) {
+    throw new Error(`Expected ${description} to exist.`);
   }
 }
 
@@ -67,6 +77,30 @@ describe('APILoader', () => {
 
   function waitForAnyPolling() {
     jasmine.clock().tick(5000);
+  }
+
+  /**
+   * Renders an API loader that runs the real inline bootstrap, with the
+   * bootstrap's script tag captured instead of appended to the document.
+   */
+  async function prepareRealBootstrap(loaderHTML: TemplateResult) {
+    env.importLibrarySpy?.and.callThrough();
+    const appendSpy = spyOn(document.head, 'append');
+    const consoleErrorSpy = spyOn(console, 'error');
+    const root = env.render(loaderHTML);
+    const loaderEl = root.querySelector<APILoader>('gmpx-api-loader');
+    assertExists(loaderEl, 'the API loader element');
+    await env.waitForStability();
+
+    /** Simulates a network failure of the bootstrap's script tag. */
+    function failScript() {
+      const script = appendSpy.calls.mostRecent().args[0];
+      if (!(script instanceof HTMLScriptElement)) {
+        throw new Error('Expected the bootstrap to append a script.');
+      }
+      script.dispatchEvent(new Event('error'));
+    }
+    return {loaderEl, consoleErrorSpy, failScript};
   }
 
   afterEach(() => {
@@ -269,37 +303,80 @@ describe('APILoader', () => {
   it('rejects promise when API is requested without a loader', async () => {
     const {consumerEl, scriptLoadSpy, consoleWarnSpy} =
         await prepareState({loaderHTML: html``});
+    assertExists(consumerEl, 'the consumer element');
 
-    await expectAsync((async () => {
-      waitForAnyPolling();
-      return await consumerEl!.coreLibraryPromise;
-    })())
-        .toBeRejectedWithError(
-            '<gmpx-test-api-consumer>: ' +
-            'The Google Maps JavaScript API is required for this element to ' +
-            'function correctly. Please ensure you have a <gmpx-api-loader> ' +
-            'on the page with a valid API key. ' +
-            'https://github.com/googlemaps/extended-component-library');
+    const rejection =
+        expectAsync(consumerEl.coreLibraryPromise)
+            .toBeRejectedWithError(
+                '<gmpx-test-api-consumer>: ' +
+                'The Google Maps JavaScript API is required ' +
+                'for this element to function correctly. ' +
+                'Please ensure you have a <gmpx-api-loader> ' +
+                'on the page with a valid API key. ' +
+                'https://github.com/googlemaps/extended-component-library');
+    waitForAnyPolling();
+
+    await rejection;
     expect(scriptLoadSpy).not.toHaveBeenCalled();
     expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
 
   it('rejects promise when API is requested without an API key', async () => {
     const {consumerEl, scriptLoadSpy, consoleWarnSpy} = await prepareState();
+    assertExists(consumerEl, 'the consumer element');
 
-    await expectAsync((async () => {
-      waitForAnyPolling();
-      return await consumerEl!.coreLibraryPromise;
-    })())
-        .toBeRejectedWithError(
-            '<gmpx-test-api-consumer>: ' +
-            'The Google Maps JavaScript API is required for this element to ' +
-            'function correctly. Please ensure you have a <gmpx-api-loader> ' +
-            'on the page with a valid API key. ' +
-            'https://github.com/googlemaps/extended-component-library');
+    const rejection =
+        expectAsync(consumerEl.coreLibraryPromise)
+            .toBeRejectedWithError(
+                '<gmpx-test-api-consumer>: ' +
+                'The Google Maps JavaScript API is required ' +
+                'for this element to function correctly. ' +
+                'Please ensure you have a <gmpx-api-loader> ' +
+                'on the page with a valid API key. ' +
+                'https://github.com/googlemaps/extended-component-library');
+    waitForAnyPolling();
+
+    await rejection;
     expect(scriptLoadSpy).not.toHaveBeenCalled();
     expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
+
+  it('resolves later requests when an API key is set after a rejection',
+     async () => {
+       const {loaderEl, consumerEl} = await prepareState();
+       assertExists(loaderEl, 'the API loader element');
+       assertExists(consumerEl, 'the consumer element');
+       const rejection =
+           expectAsync(consumerEl.coreLibraryPromise).toBeRejected();
+       waitForAnyPolling();
+       await rejection;
+
+       loaderEl.key = 'TEST_API_KEY';
+       await env.waitForStability();
+
+       const harness = env.fakeGoogleMapsHarness;
+       assertExists(harness, 'the fake Maps SDK');
+       expect(await APILoader.importLibrary('core'))
+           .toBe(harness.libraries['core']);
+     });
+
+  it('resolves later requests when a loader is added after a rejection',
+     async () => {
+       const {consumerEl} = await prepareState({loaderHTML: html``});
+       assertExists(consumerEl, 'the consumer element');
+       const rejection =
+           expectAsync(consumerEl.coreLibraryPromise).toBeRejected();
+       waitForAnyPolling();
+       await rejection;
+
+       env.render(html`<gmpx-api-loader key="TEST_API_KEY"></gmpx-api-loader>`);
+       await env.waitForStability();
+
+       const harness = env.fakeGoogleMapsHarness;
+       assertExists(harness, 'the fake Maps SDK');
+       expect(await APILoader.importLibrary('core'))
+           .toBe(harness.libraries['core']);
+     });
 
   it('resolves with library when API is requested programmatically with loader',
      async () => {
@@ -319,17 +396,93 @@ describe('APILoader', () => {
        const {scriptLoadSpy, consoleWarnSpy} =
            await prepareState({loaderHTML: html``, renderConsumerEl: false});
 
-       await expectAsync((async () => {
-         const libraryPromise = APILoader.importLibrary('core');
-         waitForAnyPolling();
-         return await libraryPromise;
-       })())
-           .toBeRejectedWithError(
-               'APILoader.importLibrary(): Unable to initialize the Google ' +
-               'Maps JavaScript API. Please ensure you have a ' +
-               '<gmpx-api-loader> on the page with a valid API key. ' +
-               'https://github.com/googlemaps/extended-component-library');
+       const rejection =
+           expectAsync(APILoader.importLibrary('core'))
+               .toBeRejectedWithError(
+                   'APILoader.importLibrary(): Unable to initialize the ' +
+                   'Google Maps JavaScript API. Please ensure you have a ' +
+                   '<gmpx-api-loader> on the page with a valid API key. ' +
+                   'https://github.com/googlemaps/extended-component-library');
+       waitForAnyPolling();
+
+       await rejection;
        expect(scriptLoadSpy).not.toHaveBeenCalled();
        expect(consoleWarnSpy).not.toHaveBeenCalled();
+     });
+
+  it('logs one error when the API script fails to load', async () => {
+    const {consoleErrorSpy, failScript} = await prepareRealBootstrap(
+        html`<gmpx-api-loader key="TEST_API_KEY"></gmpx-api-loader>`);
+    const libraryPromise = APILoader.importLibrary('core');
+
+    failScript();
+
+    await expectAsync(libraryPromise)
+        .toBeRejectedWithError(
+            'The Google Maps JavaScript API could not load.');
+    await env.waitForStability();
+    expect(consoleErrorSpy)
+        .toHaveBeenCalledOnceWith(
+            '<gmpx-api-loader>: ' +
+                'Failed to load the Google Maps JavaScript API.',
+            new Error('The Google Maps JavaScript API could not load.'));
+  });
+
+  it('logs one error when a key is set while a request is polling',
+     async () => {
+       const {loaderEl, consoleErrorSpy, failScript} =
+           await prepareRealBootstrap(
+               html`<gmpx-api-loader></gmpx-api-loader>`);
+       const libraryPromise = APILoader.importLibrary('core');
+       loaderEl.key = 'TEST_API_KEY';
+       await env.waitForStability();
+       jasmine.clock().tick(1000);
+
+       failScript();
+
+       await expectAsync(libraryPromise)
+           .toBeRejectedWithError(
+               'The Google Maps JavaScript API could not load.');
+       await env.waitForStability();
+       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+     });
+
+  it('dispatches a load event and resolves `loaded` when the API loads',
+     async () => {
+       const {loaderEl} = await prepareState({renderConsumerEl: false});
+       assertExists(loaderEl, 'the API loader element');
+       const loadSpy = jasmine.createSpy('gmpx-load');
+       const errorSpy = jasmine.createSpy('gmpx-requesterror');
+       loaderEl.addEventListener('gmpx-load', loadSpy);
+       loaderEl.addEventListener('gmpx-requesterror', errorSpy);
+
+       loaderEl.key = 'TEST_API_KEY';
+
+       await expectAsync(loaderEl.loaded).toBeResolved();
+       expect(loadSpy).toHaveBeenCalledOnceWith(jasmine.any(Event));
+       expect(errorSpy).not.toHaveBeenCalled();
+     });
+
+  it('dispatches an error event and rejects `loaded` when the API fails',
+     async () => {
+       const {loaderEl, importLibrarySpy} =
+           await prepareState({renderConsumerEl: false});
+       assertExists(loaderEl, 'the API loader element');
+       const error =
+           new Error('The Google Maps JavaScript API could not load.');
+       importLibrarySpy.and.rejectWith(error);
+       spyOn(console, 'error');
+       const loadSpy = jasmine.createSpy('gmpx-load');
+       const errorSpy = jasmine.createSpy('gmpx-requesterror');
+       loaderEl.addEventListener('gmpx-load', loadSpy);
+       loaderEl.addEventListener('gmpx-requesterror', errorSpy);
+
+       loaderEl.key = 'TEST_API_KEY';
+
+       await expectAsync(loaderEl.loaded).toBeRejectedWith(error);
+       expect(errorSpy).toHaveBeenCalledOnceWith(
+           jasmine.objectContaining({error}));
+       expect(errorSpy.calls.first().args[0]).toBeInstanceOf(RequestErrorEvent);
+       expect(loadSpy).not.toHaveBeenCalled();
      });
 });
