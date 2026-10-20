@@ -104,6 +104,19 @@ describe('SuggestValidationAction', () => {
     expect(suggestion.suggestedAction).toBe(SuggestedAction.CONFIRM);
   });
 
+  it('returns ACCEPT when only a minor component is inferred', () => {
+    const suggestion = suggestValidationAction(makeFakeValidationResponse(
+        {
+          components: [{
+            ...LOCALITY_COMPONENT,
+            componentType: 'postal_code',
+            inferred: true,
+          }]
+        },
+        GOOD_VERDICT));
+    expect(suggestion.suggestedAction).toBe(SuggestedAction.ACCEPT);
+  });
+
   it('returns CONFIRM when there is a replaced component', () => {
     const suggestion = suggestValidationAction(makeFakeValidationResponse(
         {}, {...GOOD_VERDICT, hasReplacedComponents: true}));
