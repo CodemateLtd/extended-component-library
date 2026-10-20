@@ -52,6 +52,11 @@ export class CachedPlaceLookup {
 
     const newPlacePromise = makeNewPlacePromise(id, this.consumer);
     this.cache.set(id, newPlacePromise);
+    newPlacePromise.catch(() => {
+      if (this.cache.get(id) === newPlacePromise) {
+        this.cache.delete(id);
+      }
+    });
     return newPlacePromise;
   }
 

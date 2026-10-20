@@ -517,6 +517,34 @@ describe('PlaceDataProvider', () => {
      });
 
   describe('refresh', () => {
+    it('recovers after the Places library import fails', async () => {
+      let imports = 0;
+      env.importLibrarySpy!.and.callFake((library: string) => {
+        imports++;
+        if (imports === 1) return Promise.reject(new Error('transient'));
+        return env.fakeGoogleMapsHarness!.importLibrary(library);
+      });
+      env.fakeGoogleMapsHarness!.placeConstructor = (options) => makeFakePlace({
+        id: options.id,
+        fetchFields: async () => ({place: makeFakePlace({id: options.id})})
+      });
+
+      const root = env.render(html`
+        <gmpx-place-data-provider place="id26-retry">
+          Loaded
+        </gmpx-place-data-provider>
+      `);
+      await env.waitForStability();
+      const provider =
+          root.querySelector('gmpx-place-data-provider') as PlaceDataProvider;
+      expect(provider.renderRoot.querySelector('slot')?.name).toBe('error');
+
+      await provider.refresh();
+      await env.waitForStability();
+      expect(provider.renderRoot.querySelector('slot')?.name).toBe('');
+      expect(imports).toBe(2);
+    });
+
     it(`fetches new child's field when refresh is called with place id`, async () => {
       const {provider, fetchFieldsSpy} = await prepareState(html`
         <gmpx-place-data-provider place="id8-B">
