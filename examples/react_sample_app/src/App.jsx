@@ -10,7 +10,7 @@ import React from 'react';
 import './App.css';
 import {CollegePicker} from './CollegePicker';
 
-const API_KEY = process.env.REACT_APP_MAPS_API_KEY;
+const API_KEY = import.meta.env.VITE_MAPS_API_KEY;
 const DEFAULT_CENTER = '45,-98';
 const DEFAULT_ZOOM = 4;
 const DEFAULT_ZOOM_WITH_LOCATION = 16;
