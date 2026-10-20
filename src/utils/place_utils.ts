@@ -112,7 +112,7 @@ export async function makePlaceFromPlaceResult(
       typeof google.maps.places;
   const place = new placesLibrary.Place(
                     {id: placeResult.place_id ?? 'PLACE_ID_MISSING'}) as Place;
-  let predefinedFields = convertToPlaceFields(placeResult);
+  const predefinedFields = convertToPlaceFields(placeResult);
 
   // Override Place object's getters to return data from PlaceResult if defined.
   return new Proxy(place, {
@@ -124,27 +124,8 @@ export async function makePlaceFromPlaceResult(
           const requestFields = request.fields as [keyof Place];
           const forwardedFields = requestFields.filter(
               (field) => predefinedFields[field] === undefined);
-          try {
-            return await target.fetchFields(
-                {...request, fields: forwardedFields});
-          } catch (e: unknown) {
-            // Place.fetchFields() is only available in beta versions of the
-            // Maps JS SDK. If a stable version of the SDK is loaded, fall
-            // back to the Place Details API.
-            if (isNotAvailableError(e, 'fetchFields()')) {
-              const placeResultFields =
-                  mapPlaceFieldsToPlaceResultFields(forwardedFields);
-              if (!placeResultFields.length) return {place};
-              const response = await fetchFromPlaceDetails(
-                  placesLibrary, place.id, placeResultFields);
-              predefinedFields = {
-                ...convertToPlaceFields(response),
-                ...predefinedFields,
-              };
-              return {place};
-            }
-            throw e;
-          }
+          return await target.fetchFields(
+              {...request, fields: forwardedFields});
         };
       } else if (name === 'isOpen') {
         return async (d?: Date) => {
@@ -350,20 +331,4 @@ export function isNotAvailableError(e: unknown, property: string): e is Error {
   return e.message.startsWith(`Place.prototype.${property} is not available`) ||
       e.message.startsWith(
           `google.maps.places.Place.${property} is not available`);
-}
-
-async function fetchFromPlaceDetails(
-    placesLibrary: typeof google.maps.places, placeId: string,
-    fields: string[]): Promise<PlaceResult> {
-  const placesService =
-      new placesLibrary.PlacesService(document.createElement('div'));
-  return new Promise((resolve, reject) => {
-    placesService.getDetails({placeId, fields}, (result, status) => {
-      if (result && status === 'OK') {
-        resolve(result);
-      } else {
-        reject(status);
-      }
-    });
-  });
 }

@@ -494,26 +494,27 @@ describe('PlaceDataProvider', () => {
     expect(provider.querySelectorAll('gmpx-place-attribution')).toHaveSize(1);
   });
 
-  it('fetches from Place Details when Place.fetchFields() is not available',
+  it('dispatches gmpx-requesterror when Place.fetchFields() is not available',
      async () => {
-       spyOn(env.fakeGoogleMapsHarness!, 'getDetailsHandler')
-           .and.returnValue({result: {name: 'Foo Inc'}, status: 'OK'});
+       const error = new Error(
+           'Place.prototype.fetchFields() is not available in the SDK!');
+       const requestErrorListener = jasmine.createSpy('requestErrorListener');
 
        const {provider} = await prepareState(
            html`
-            <gmpx-place-data-provider place="id21">
+            <gmpx-place-data-provider
+              place="id21"
+              @gmpx-requesterror=${(e: Event) => requestErrorListener(e)}
+            >
               <gmpx-test-consumer field="displayName">
               </gmpx-test-consumer>
             </gmpx-place-data-provider>`,
-           () => {
-             throw new Error(
-                 'Place.prototype.fetchFields() is not available in the SDK!');
-           });
+           () => Promise.reject(error));
 
-       expect(env.fakeGoogleMapsHarness!.getDetailsHandler)
-           .toHaveBeenCalledOnceWith({placeId: 'id21', fields: ['name']});
-       const consumer = provider.children[0] as TestConsumer;
-       expect(consumer.contextPlace?.displayName).toBe('Foo Inc');
+       expect(requestErrorListener)
+           .toHaveBeenCalledOnceWith(
+               jasmine.objectContaining({type: 'gmpx-requesterror', error}));
+       expect(provider.renderRoot.querySelector('slot')?.name).toBe('error');
      });
 
   describe('refresh', () => {
