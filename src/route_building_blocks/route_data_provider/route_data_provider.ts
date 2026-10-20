@@ -47,7 +47,8 @@ export class RouteDataProvider extends BaseComponent {
   @property({
     converter: LAT_LNG_LITERAL_ATTRIBUTE_CONVERTER,
     attribute: 'destination-lat-lng',
-    reflect: true
+    reflect: true,
+    hasChanged: latLngChanged,
   })
   destinationLatLng?: LatLng|LatLngLiteral;
 
@@ -73,7 +74,8 @@ export class RouteDataProvider extends BaseComponent {
   @property({
     converter: LAT_LNG_LITERAL_ATTRIBUTE_CONVERTER,
     attribute: 'origin-lat-lng',
-    reflect: true
+    reflect: true,
+    hasChanged: latLngChanged,
   })
   originLatLng?: LatLng|LatLngLiteral;
 
@@ -183,4 +185,13 @@ declare global {
  */
 function numTruthy(...args: unknown[]): number {
   return args.filter((x) => x).length;
+}
+
+function latLngChanged(
+    value?: LatLng|LatLngLiteral, previous?: LatLng|LatLngLiteral): boolean {
+  const lat = (location?: LatLng|LatLngLiteral) =>
+      typeof location?.lat === 'function' ? location.lat() : location?.lat;
+  const lng = (location?: LatLng|LatLngLiteral) =>
+      typeof location?.lng === 'function' ? location.lng() : location?.lng;
+  return lat(value) !== lat(previous) || lng(value) !== lng(previous);
 }
