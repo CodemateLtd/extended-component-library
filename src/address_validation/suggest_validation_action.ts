@@ -70,9 +70,7 @@ function hasMajorInference(result: AddressValidation): boolean {
   ]);
   return !!result.address &&
       result.address.components.some(
-          // TODO: Align with 3.65 typings
-          // @ts-ignore
-          c => c.isInferred && !minorComponents.has(c.componentType!))
+          c => c.inferred && !minorComponents.has(c.componentType ?? ''));
 }
 
 function hasReplacement(result: AddressValidation): boolean {

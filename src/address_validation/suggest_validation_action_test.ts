@@ -27,7 +27,7 @@ const LOCALITY_COMPONENT: AddressComponent = {
   componentName: {text: 'Mountain View', languageCode: 'en'},
   componentType: 'locality',
   confirmationLevel: null,
-  isInferred: false,
+  inferred: false,
   isSpellCorrected: false,
   isReplaced: false,
   isUnexpected: false
@@ -97,7 +97,7 @@ describe('SuggestValidationAction', () => {
         {
           components: [{
             ...LOCALITY_COMPONENT,
-            isInferred: true,
+            inferred: true,
           }]
         },
         GOOD_VERDICT));
