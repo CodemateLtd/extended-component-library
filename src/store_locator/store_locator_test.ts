@@ -204,7 +204,7 @@ describe('StoreLocator', () => {
          destinations: [LISTING_A.position, LISTING_B.position],
          units: 0 as google.maps.UnitSystem.IMPERIAL,
          travelMode: 'DRIVING' as google.maps.TravelMode,
-         fields: ['condition', 'distanceMeters', 'localizedValues'],
+         fields: ['condition', 'distanceMeters', 'localizedValues', 'error'],
        });
        expect(map?.innerMap?.fitBounds)
            .toHaveBeenCalledOnceWith(

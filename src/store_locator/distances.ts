@@ -5,6 +5,7 @@
  */
 
 import {APILoader} from '../api_loader/api_loader.js';
+import {RequestErrorEvent} from '../base/events.js';
 import {ComputeRouteMatrixRequest, ComputeRouteMatrixResponse, LatLng, LatLngLiteral, RouteMatrixConstructor} from '../utils/googlemaps_types.js';
 import {RequestCache} from '../utils/request_cache.js';
 import {isRetriableRpcError} from '../utils/rpc_status.js';
@@ -92,7 +93,7 @@ export class DistanceMeasurer {
       destinations: destinationsForLookup,
       travelMode: 'DRIVING',
       units,
-      fields: ['condition', 'distanceMeters', 'localizedValues'],
+      fields: ['condition', 'distanceMeters', 'localizedValues', 'error'],
     };
     let responsePromise = DistanceMeasurer.cache.get(request);
     if (responsePromise == null) {
@@ -102,13 +103,31 @@ export class DistanceMeasurer {
     }
     const {matrix} = await responsePromise;
     const items = matrix.rows[0]?.items ?? [];
-    for (let i = 0; i < items.length; i++) {
+    for (let i = 0; i < destinationsForLookup.length; i++) {
       const distanceInfo = distances.get(destinationsForLookup[i])!;
       const apiResult = items[i];
-      if (apiResult.condition === 'ROUTE_EXISTS') {
+      if (apiResult?.error) {
+        this.elementForLogging?.dispatchEvent(
+            new RequestErrorEvent(apiResult.error));
+      }
+      if (apiResult?.condition === 'ROUTE_EXISTS') {
         distanceInfo.value = apiResult.distanceMeters;
         distanceInfo.text = apiResult.localizedValues?.distance ?? undefined;
         distanceInfo.source = DistanceSource.ROUTE_MATRIX;
+      }
+    }
+
+    const missingDistances = destinationsForLookup.filter(
+        destination => distances.get(destination)?.source == null);
+    if (missingDistances.length) {
+      const {spherical} =
+          await APILoader.importLibrary('geometry', this.elementForLogging) as
+          google.maps.GeometryLibrary;
+      for (const destination of missingDistances) {
+        const distanceInfo = distances.get(destination)!;
+        distanceInfo.source = DistanceSource.GEOMETRIC;
+        distanceInfo.value =
+            spherical.computeDistanceBetween(origin, destination);
       }
     }
 
