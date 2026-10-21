@@ -19,7 +19,8 @@ import {getDeepActiveElement, someDeepContains} from '../utils/deep_element_acce
  * settings.
  *
  * This component helps manage keyboard focus when opening and closing the
- * overlay.
+ * overlay. Pressing Esc closes the overlay when focus is inside it or when
+ * nothing on the page has focus.
  *
  * The size of the gmpx-overlay-layout can be set directly with the `width` and
  * `height` properties. If none are provided, it will fill the size of its
