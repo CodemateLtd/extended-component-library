@@ -101,7 +101,23 @@ export class DistanceMeasurer {
           (routeMatrixClass) => routeMatrixClass.computeRouteMatrix(request));
       DistanceMeasurer.cache.set(request, responsePromise);
     }
-    const {matrix} = await responsePromise;
+    let matrix: google.maps.routes.RouteMatrix;
+    try {
+      ({matrix} = await responsePromise);
+    } catch (error) {
+      this.elementForLogging?.dispatchEvent(new RequestErrorEvent(error));
+      const {spherical} =
+          await APILoader.importLibrary('geometry', this.elementForLogging) as
+          google.maps.GeometryLibrary;
+      for (const [destination, distanceInfo] of distances.entries()) {
+        if (distanceInfo.source == null) {
+          distanceInfo.source = DistanceSource.GEOMETRIC;
+          distanceInfo.value =
+              spherical.computeDistanceBetween(origin, destination);
+        }
+      }
+      return destinations.map(destination => distances.get(destination)!);
+    }
     const items = matrix.rows[0]?.items ?? [];
     for (let i = 0; i < destinationsForLookup.length; i++) {
       const distanceInfo = distances.get(destinationsForLookup[i])!;

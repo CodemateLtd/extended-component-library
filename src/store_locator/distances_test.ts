@@ -58,8 +58,11 @@ describe('DistanceMeasurer', () => {
       const units = 0 as google.maps.UnitSystem.IMPERIAL;
       const measurer = new DistanceMeasurer();
 
-      await expectAsync(measurer.computeDistances(origin, destinations, units))
-          .toBeRejected();
+      expect(await measurer.computeDistances(origin, destinations, units))
+          .toEqual([
+            {source: DistanceSource.GEOMETRIC, value: 1},
+            {source: DistanceSource.GEOMETRIC, value: 2},
+          ]);
       routeMatrixSpy.and.callThrough();
       const distances =
           await measurer.computeDistances(origin, destinations, units);
@@ -80,10 +83,14 @@ describe('DistanceMeasurer', () => {
     const units = 0 as google.maps.UnitSystem.IMPERIAL;
     const measurer = new DistanceMeasurer();
 
-    await expectAsync(measurer.computeDistances(origin, destinations, units))
-        .toBeRejected();
-    await expectAsync(measurer.computeDistances(origin, destinations, units))
-        .toBeRejected();
+    const fallback = [
+      {source: DistanceSource.GEOMETRIC, value: 1},
+      {source: DistanceSource.GEOMETRIC, value: 2},
+    ];
+    expect(await measurer.computeDistances(origin, destinations, units))
+        .toEqual(fallback);
+    expect(await measurer.computeDistances(origin, destinations, units))
+        .toEqual(fallback);
 
 
     expect(routeMatrixSpy).toHaveBeenCalledTimes(1);

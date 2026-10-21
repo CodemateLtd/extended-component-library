@@ -8,6 +8,7 @@
 
 import {html, nothing} from 'lit';
 
+import {RequestErrorEvent} from '../base/events.js';
 import type {OverlayLayout} from '../overlay_layout/overlay_layout.js';
 import type {PlaceOverview} from '../place_overview/place_overview.js';
 import type {PlacePicker} from '../place_picker/place_picker.js';
@@ -244,6 +245,55 @@ describe('StoreLocator', () => {
     expect(resultsList!.children[0].querySelector('.distance')?.textContent)
         .toContain('20.7 1');
   });
+
+  it('reports a failed Route Matrix request and replaces old distances',
+     async () => {
+       const {locator, placePicker, resultsList} = await prepareState({
+         listings: [LISTING_A, LISTING_B],
+         featureSet: FeatureSet.INTERMEDIATE,
+       });
+       const firstLocation = {location: new FakeLatLng(10, 10)} as
+           Partial<Place> as Place;
+       const nextLocation = {location: new FakeLatLng(0, 0)} as Partial<Place> as
+           Place;
+       spyOnProperty(placePicker!, 'value')
+           .and.returnValues(firstLocation, nextLocation);
+       const initialDistances = new Map<LatLngLiteral, number>();
+       initialDistances.set(LISTING_A.position as LatLngLiteral, 30);
+       initialDistances.set(LISTING_B.position as LatLngLiteral, 20);
+       const routeMatrixSpy =
+           spyOn(env.fakeGoogleMapsHarness!, 'computeRouteMatrixHandler')
+               .and.callFake(
+                   request =>
+                       makeFakeRouteMatrixResponse(request, initialDistances));
+       const listener = jasmine.createSpy('requestError');
+       locator.addEventListener('gmpx-requesterror', listener);
+
+       placePicker!.dispatchEvent(new Event('gmpx-placechange'));
+       await env.waitForStability();
+       expect(resultsList!.children[0].querySelector('.distance')?.textContent)
+           .toContain('20');
+       expect(resultsList!.children[0].textContent)
+           .toContain(LISTING_B.addressLines![0]);
+
+       const error = Object.assign(new Error('Route Matrix unavailable'),
+                                   {code: 'UNAVAILABLE'});
+       routeMatrixSpy.and.callFake(() => {
+         throw error;
+       });
+       placePicker!.dispatchEvent(new Event('gmpx-placechange'));
+       await env.waitForStability();
+       for (let i = 0; i < 10; i++) await Promise.resolve();
+       await env.waitForStability();
+
+       expect(listener).toHaveBeenCalledTimes(1);
+       expect((listener.calls.mostRecent()?.args[0] as RequestErrorEvent).error)
+           .toBe(error);
+       expect(resultsList!.children[0].textContent)
+           .toContain(LISTING_A.addressLines![0]);
+       expect(resultsList!.children[0].querySelector('.distance')?.textContent)
+           .not.toContain('20');
+     });
 
   it('shows place details', async () => {
     const {resultsList, placeOverview, overlayLayout} = await prepareState(

@@ -22,6 +22,7 @@ import {repeat} from 'lit/directives/repeat.js';
 
 import {APILoader} from '../api_loader/api_loader.js';
 import {BaseComponent} from '../base/base_component.js';
+import {RequestErrorEvent} from '../base/events.js';
 import {LocalizationController} from '../base/localization_controller.js';
 import {WebFont, WebFontController} from '../base/web_font_controller.js';
 import type {OverlayLayout} from '../overlay_layout/overlay_layout.js';
@@ -92,6 +93,9 @@ const DEFAULT_MAP_OPTIONS: Partial<google.maps.MapOptions> = {
  * ```
  *
  * See below for a full example.
+ *
+ * @event {RequestErrorEvent} gmpx-requesterror - Indicates an error in a
+ * Route Matrix or route request. (React: onRequestError)
  *
  * @cssproperty [--gmpx-color-surface] - Background color.
  * @cssproperty [--gmpx-color-on-surface] - Main text color.
@@ -315,7 +319,12 @@ export class StoreLocator extends BaseComponent {
     this.updateBounds();
 
     // Update distances to this location
-    this.updateDistances(place?.location);
+    this.updateDistances(place?.location).catch(error => {
+      this.listingDistances.clear();
+      const requestErrorEvent = new RequestErrorEvent(error);
+      this.dispatchEvent(requestErrorEvent);
+      this.requestUpdate();
+    });
   }
 
   /**
