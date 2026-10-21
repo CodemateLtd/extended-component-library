@@ -17,7 +17,7 @@ import type {FakeMapElement} from '../testing/fake_gmp_components.js';
 import {FakeLatLng, FakeLatLngBounds} from '../testing/fake_lat_lng.js';
 import {makeFakeRouteMatrixResponse} from '../testing/fake_route_matrix.js';
 import {Deferred} from '../utils/deferred.js';
-import {mapsJsData, type LatLngLiteral, type Place} from '../utils/googlemaps_types.js';
+import {mapsJsData, type ComputeRouteMatrixResponse, type LatLngLiteral, type Place} from '../utils/googlemaps_types.js';
 
 import {DistanceMeasurer} from './distances.js';
 import {FeatureSet, StoreLocatorListing} from './interfaces.js';
@@ -319,6 +319,82 @@ describe('StoreLocator', () => {
     expect((listener.calls.mostRecent()?.args[0] as RequestErrorEvent).error)
         .toBe(error);
   });
+
+  it('keeps the latest fallback when an older search finishes later',
+     async () => {
+       const {placePicker, resultsList} = await prepareState({
+         listings: [LISTING_A, LISTING_B],
+         featureSet: FeatureSet.INTERMEDIATE,
+       });
+       const first = new Deferred<ComputeRouteMatrixResponse>();
+       const routeMatrixSpy =
+           spyOn(env.fakeGoogleMapsHarness!, 'computeRouteMatrixHandler');
+       routeMatrixSpy.and.callFake(request => {
+         if (routeMatrixSpy.calls.count() === 1) {
+           return first.promise as unknown as ComputeRouteMatrixResponse;
+         }
+         throw new Error('Latest search failed');
+       });
+       spyOnProperty(placePicker!, 'value')
+           .and.returnValues(
+               {location: new FakeLatLng(10, 10)} as Partial<Place> as Place,
+               {location: new FakeLatLng(0, 0)} as Partial<Place> as Place);
+
+       placePicker!.dispatchEvent(new Event('gmpx-placechange'));
+       for (let i = 0; i < 10; i++) await Promise.resolve();
+       placePicker!.dispatchEvent(new Event('gmpx-placechange'));
+       await env.waitForStability();
+       for (let i = 0; i < 10; i++) await Promise.resolve();
+       await env.waitForStability();
+       expect(resultsList!.children[0].querySelector('.distance')?.textContent)
+           .not.toContain('101');
+
+       first.resolve(
+           makeFakeRouteMatrixResponse(routeMatrixSpy.calls.first().args[0]));
+       for (let i = 0; i < 10; i++) await Promise.resolve();
+       await env.waitForStability();
+
+       expect(resultsList!.children[0].querySelector('.distance')?.textContent)
+           .not.toContain('101');
+     });
+
+  it('ignores an older search error after a newer search succeeds',
+     async () => {
+       const {locator, placePicker, resultsList} = await prepareState({
+         listings: [LISTING_A],
+         featureSet: FeatureSet.INTERMEDIATE,
+       });
+       const first = new Deferred<ComputeRouteMatrixResponse>();
+       const routeMatrixSpy =
+           spyOn(env.fakeGoogleMapsHarness!, 'computeRouteMatrixHandler');
+       routeMatrixSpy.and.callFake(
+           request => routeMatrixSpy.calls.count() === 1 ?
+               first.promise as unknown as ComputeRouteMatrixResponse :
+               makeFakeRouteMatrixResponse(request));
+       spyOnProperty(placePicker!, 'value')
+           .and.returnValues(
+               {location: new FakeLatLng(10, 10)} as Partial<Place> as Place,
+               {location: new FakeLatLng(0, 0)} as Partial<Place> as Place);
+       const listener = jasmine.createSpy('requestError');
+       locator.addEventListener('gmpx-requesterror', listener);
+
+       placePicker!.dispatchEvent(new Event('gmpx-placechange'));
+       for (let i = 0; i < 10; i++) await Promise.resolve();
+       placePicker!.dispatchEvent(new Event('gmpx-placechange'));
+       await env.waitForStability();
+       for (let i = 0; i < 10; i++) await Promise.resolve();
+       await env.waitForStability();
+       expect(resultsList!.children[0].querySelector('.distance')?.textContent)
+           .toContain('101');
+
+       first.reject(new Error('Older request failed'));
+       for (let i = 0; i < 10; i++) await Promise.resolve();
+       await env.waitForStability();
+
+       expect(listener).not.toHaveBeenCalled();
+       expect(resultsList!.children[0].querySelector('.distance')?.textContent)
+           .toContain('101');
+     });
 
   it('shows place details', async () => {
     const {resultsList, placeOverview, overlayLayout} = await prepareState(

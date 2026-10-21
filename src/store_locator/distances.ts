@@ -60,7 +60,8 @@ export class DistanceMeasurer {
    */
   async computeDistances(
       origin: LatLng|LatLngLiteral, destinations: Array<LatLng|LatLngLiteral>,
-      units: google.maps.UnitSystem): Promise<DistanceInfo[]> {
+      units: google.maps.UnitSystem,
+      onError?: (error: unknown) => void): Promise<DistanceInfo[]> {
     const distances = new Map<Destination, DistanceInfo>();
     for (const destination of destinations) {
       distances.set(destination, {});
@@ -105,7 +106,7 @@ export class DistanceMeasurer {
     try {
       ({matrix} = await responsePromise);
     } catch (error) {
-      this.elementForLogging?.dispatchEvent(new RequestErrorEvent(error));
+      this.reportError(error, onError);
       const {spherical} =
           await APILoader.importLibrary('geometry', this.elementForLogging) as
           google.maps.GeometryLibrary;
@@ -123,8 +124,7 @@ export class DistanceMeasurer {
       const distanceInfo = distances.get(destinationsForLookup[i])!;
       const apiResult = items[i];
       if (apiResult?.error) {
-        this.elementForLogging?.dispatchEvent(
-            new RequestErrorEvent(apiResult.error));
+        this.reportError(apiResult.error, onError);
       }
       if (apiResult?.condition === 'ROUTE_EXISTS') {
         distanceInfo.value = apiResult.distanceMeters;
@@ -148,6 +148,14 @@ export class DistanceMeasurer {
     }
 
     return destinations.map(destination => distances.get(destination)!);
+  }
+
+  private reportError(error: unknown, onError?: (error: unknown) => void) {
+    if (onError) {
+      onError(error);
+    } else {
+      this.elementForLogging?.dispatchEvent(new RequestErrorEvent(error));
+    }
   }
 
   private async getRouteMatrixClass(): Promise<RouteMatrixConstructor> {
