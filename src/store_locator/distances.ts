@@ -5,6 +5,7 @@
  */
 
 import {APILoader} from '../api_loader/api_loader.js';
+import {RequestErrorEvent} from '../base/events.js';
 import {ComputeRouteMatrixRequest, ComputeRouteMatrixResponse, LatLng, LatLngLiteral, RouteMatrixConstructor} from '../utils/googlemaps_types.js';
 import {RequestCache} from '../utils/request_cache.js';
 import {isRetriableRpcError} from '../utils/rpc_status.js';
@@ -59,7 +60,8 @@ export class DistanceMeasurer {
    */
   async computeDistances(
       origin: LatLng|LatLngLiteral, destinations: Array<LatLng|LatLngLiteral>,
-      units: google.maps.UnitSystem): Promise<DistanceInfo[]> {
+      units: google.maps.UnitSystem,
+      onError?: (error: unknown) => void): Promise<DistanceInfo[]> {
     const distances = new Map<Destination, DistanceInfo>();
     for (const destination of destinations) {
       distances.set(destination, {});
@@ -92,7 +94,7 @@ export class DistanceMeasurer {
       destinations: destinationsForLookup,
       travelMode: 'DRIVING',
       units,
-      fields: ['condition', 'distanceMeters', 'localizedValues'],
+      fields: ['condition', 'distanceMeters', 'localizedValues', 'error'],
     };
     let responsePromise = DistanceMeasurer.cache.get(request);
     if (responsePromise == null) {
@@ -100,19 +102,60 @@ export class DistanceMeasurer {
           (routeMatrixClass) => routeMatrixClass.computeRouteMatrix(request));
       DistanceMeasurer.cache.set(request, responsePromise);
     }
-    const {matrix} = await responsePromise;
+    let matrix: google.maps.routes.RouteMatrix;
+    try {
+      ({matrix} = await responsePromise);
+    } catch (error) {
+      this.reportError(error, onError);
+      const {spherical} =
+          await APILoader.importLibrary('geometry', this.elementForLogging) as
+          google.maps.GeometryLibrary;
+      for (const [destination, distanceInfo] of distances.entries()) {
+        if (distanceInfo.source == null) {
+          distanceInfo.source = DistanceSource.GEOMETRIC;
+          distanceInfo.value =
+              spherical.computeDistanceBetween(origin, destination);
+        }
+      }
+      return destinations.map(destination => distances.get(destination)!);
+    }
     const items = matrix.rows[0]?.items ?? [];
-    for (let i = 0; i < items.length; i++) {
+    for (let i = 0; i < destinationsForLookup.length; i++) {
       const distanceInfo = distances.get(destinationsForLookup[i])!;
       const apiResult = items[i];
-      if (apiResult.condition === 'ROUTE_EXISTS') {
+      if (apiResult?.error) {
+        this.reportError(apiResult.error, onError);
+      }
+      if (apiResult?.condition === 'ROUTE_EXISTS') {
         distanceInfo.value = apiResult.distanceMeters;
         distanceInfo.text = apiResult.localizedValues?.distance ?? undefined;
         distanceInfo.source = DistanceSource.ROUTE_MATRIX;
       }
     }
 
+    const missingDistances = destinationsForLookup.filter(
+        destination => distances.get(destination)?.source == null);
+    if (missingDistances.length) {
+      const {spherical} =
+          await APILoader.importLibrary('geometry', this.elementForLogging) as
+          google.maps.GeometryLibrary;
+      for (const destination of missingDistances) {
+        const distanceInfo = distances.get(destination)!;
+        distanceInfo.source = DistanceSource.GEOMETRIC;
+        distanceInfo.value =
+            spherical.computeDistanceBetween(origin, destination);
+      }
+    }
+
     return destinations.map(destination => distances.get(destination)!);
+  }
+
+  private reportError(error: unknown, onError?: (error: unknown) => void) {
+    if (onError) {
+      onError(error);
+    } else {
+      this.elementForLogging?.dispatchEvent(new RequestErrorEvent(error));
+    }
   }
 
   private async getRouteMatrixClass(): Promise<RouteMatrixConstructor> {

@@ -22,6 +22,7 @@ import {repeat} from 'lit/directives/repeat.js';
 
 import {APILoader} from '../api_loader/api_loader.js';
 import {BaseComponent} from '../base/base_component.js';
+import {RequestErrorEvent} from '../base/events.js';
 import {LocalizationController} from '../base/localization_controller.js';
 import {WebFont, WebFontController} from '../base/web_font_controller.js';
 import type {OverlayLayout} from '../overlay_layout/overlay_layout.js';
@@ -92,6 +93,9 @@ const DEFAULT_MAP_OPTIONS: Partial<google.maps.MapOptions> = {
  * ```
  *
  * See below for a full example.
+ *
+ * @event {RequestErrorEvent} gmpx-requesterror - Indicates an error in a
+ * Route Matrix or route request. (React: onRequestError)
  *
  * @cssproperty [--gmpx-color-surface] - Background color.
  * @cssproperty [--gmpx-color-on-surface] - Main text color.
@@ -176,6 +180,7 @@ export class StoreLocator extends BaseComponent {
   private userCountry?: string;
   private readonly distanceMeasurer = new DistanceMeasurer(this);
   private readonly listingDistances = new Map<InternalListing, DistanceInfo>();
+  private distanceUpdateId = 0;
 
   constructor() {
     super();
@@ -278,7 +283,8 @@ export class StoreLocator extends BaseComponent {
         this.featureSet === FeatureSet.ADVANCED;
   }
 
-  private async updateDistances(origin: LatLng|null|undefined) {
+  private async updateDistances(
+      origin: LatLng|null|undefined, updateId: number) {
     if (!this.isIntermediateOrBetter() || !origin ||
         !this.internalListings.length) {
       this.listingDistances.clear();
@@ -286,11 +292,17 @@ export class StoreLocator extends BaseComponent {
       const units = (this.userCountry === 'US') ?
           this.mapsCoreLibrary!.UnitSystem.IMPERIAL :
           this.mapsCoreLibrary!.UnitSystem.METRIC;
+      const listings = this.internalListings;
       const distances = await this.distanceMeasurer.computeDistances(
-          origin, this.internalListings.map(listing => listing.position),
-          units);
+          origin, listings.map(listing => listing.position), units, error => {
+            if (updateId !== this.distanceUpdateId) return;
+            const requestErrorEvent = new RequestErrorEvent(error);
+            this.dispatchEvent(requestErrorEvent);
+          });
+      if (updateId !== this.distanceUpdateId) return;
+      this.listingDistances.clear();
       for (let i = 0; i < distances.length; i++) {
-        this.listingDistances.set(this.internalListings[i], distances[i]);
+        this.listingDistances.set(listings[i], distances[i]);
       }
     }
     this.requestUpdate();
@@ -315,7 +327,14 @@ export class StoreLocator extends BaseComponent {
     this.updateBounds();
 
     // Update distances to this location
-    this.updateDistances(place?.location);
+    const updateId = ++this.distanceUpdateId;
+    this.updateDistances(place?.location, updateId).catch(error => {
+      if (updateId !== this.distanceUpdateId) return;
+      this.listingDistances.clear();
+      const requestErrorEvent = new RequestErrorEvent(error);
+      this.dispatchEvent(requestErrorEvent);
+      this.requestUpdate();
+    });
   }
 
   /**
@@ -538,12 +557,18 @@ export class StoreLocator extends BaseComponent {
       // clang-format off
       return html`
       <gmpx-route-overview no-pin
+          @gmpx-requesterror=${this.forwardRequestError}
           .originLatLng=${originLatLng}
           .destinationLatLng=${destinationLatLng}>
       </gmpx-route-overview>`;
       // clang-format on
     }
     return nothing;
+  }
+
+  private forwardRequestError(event: RequestErrorEvent) {
+    const requestErrorEvent = new RequestErrorEvent(event.error);
+    this.dispatchEvent(requestErrorEvent);
   }
 
   private renderMapPanel() {

@@ -202,4 +202,7 @@ export const StoreLocator = createComponent({
   tagName: 'gmpx-store-locator',
   elementClass: StoreLocatorWC,
   react: React,
+  events: {
+    'onRequestError': 'gmpx-requesterror' as EventName<RequestErrorEvent>,
+  },
 });

@@ -5,6 +5,7 @@
  */
 // import 'jasmine'; (google3-only)
 
+import {RequestErrorEvent} from '../base/events.js';
 import {Environment} from '../testing/environment.js';
 import {FAKE_RM_VALUE, makeFakeRouteMatrixResponse} from '../testing/fake_route_matrix.js';
 import type {LatLngLiteral} from '../utils/googlemaps_types.js';
@@ -57,8 +58,11 @@ describe('DistanceMeasurer', () => {
       const units = 0 as google.maps.UnitSystem.IMPERIAL;
       const measurer = new DistanceMeasurer();
 
-      await expectAsync(measurer.computeDistances(origin, destinations, units))
-          .toBeRejected();
+      expect(await measurer.computeDistances(origin, destinations, units))
+          .toEqual([
+            {source: DistanceSource.GEOMETRIC, value: 1},
+            {source: DistanceSource.GEOMETRIC, value: 2},
+          ]);
       routeMatrixSpy.and.callThrough();
       const distances =
           await measurer.computeDistances(origin, destinations, units);
@@ -79,10 +83,14 @@ describe('DistanceMeasurer', () => {
     const units = 0 as google.maps.UnitSystem.IMPERIAL;
     const measurer = new DistanceMeasurer();
 
-    await expectAsync(measurer.computeDistances(origin, destinations, units))
-        .toBeRejected();
-    await expectAsync(measurer.computeDistances(origin, destinations, units))
-        .toBeRejected();
+    const fallback = [
+      {source: DistanceSource.GEOMETRIC, value: 1},
+      {source: DistanceSource.GEOMETRIC, value: 2},
+    ];
+    expect(await measurer.computeDistances(origin, destinations, units))
+        .toEqual(fallback);
+    expect(await measurer.computeDistances(origin, destinations, units))
+        .toEqual(fallback);
 
 
     expect(routeMatrixSpy).toHaveBeenCalledTimes(1);
@@ -120,4 +128,39 @@ describe('DistanceMeasurer', () => {
     expect(distances[5])
         .toEqual({source: DistanceSource.ROUTE_MATRIX, value: 4, text: '4 0'});
   });
+
+  it('keeps routed results and falls back for failed and missing routes',
+     async () => {
+       const origin = {lat: 0, lng: 0};
+       const destinations =
+           [{lat: 1, lng: 1}, {lat: 2, lng: 2}, {lat: 3, lng: 3}];
+       const error = new Error('Item failed');
+       const element = document.createElement('div');
+       const listener = jasmine.createSpy('requestError');
+       element.addEventListener('gmpx-requesterror', listener);
+       const routeMatrixSpy =
+           spyOn(env.fakeGoogleMapsHarness!, 'computeRouteMatrixHandler')
+               .and.callFake((request) => {
+                 const response = makeFakeRouteMatrixResponse(request);
+                 const items = response.matrix.rows[0].items;
+                 Object.assign(items[1], {condition: 'ROUTE_NOT_FOUND', error});
+                 Object.assign(items[2], {condition: 'ROUTE_NOT_FOUND'});
+                 return response;
+               });
+
+       const distances = await new DistanceMeasurer(element).computeDistances(
+           origin, destinations, 0 as google.maps.UnitSystem.IMPERIAL);
+
+       expect(routeMatrixSpy.calls.mostRecent().args[0].fields).toEqual([
+         'condition', 'distanceMeters', 'localizedValues', 'error'
+       ]);
+       expect(distances).toEqual([
+         DEFAULT_FAKE_DISTANCE,
+         {source: DistanceSource.GEOMETRIC, value: 2},
+         {source: DistanceSource.GEOMETRIC, value: 3},
+       ]);
+       expect(listener).toHaveBeenCalledTimes(1);
+       expect((listener.calls.mostRecent().args[0] as RequestErrorEvent).error)
+           .toBe(error);
+     });
 });
