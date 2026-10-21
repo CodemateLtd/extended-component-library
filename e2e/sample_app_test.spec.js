@@ -5,6 +5,30 @@
  */
 
 import {expect, test} from '@playwright/test';
+import {existsSync} from 'node:fs';
+import {readFile} from 'node:fs/promises';
+
+test('JS sample serves the built bundle without rewriting source',
+    async ({request}) => {
+      const page = await request.get('http://localhost:8002/');
+      const bundle = await request.get(
+          'http://localhost:8002/extended_component_library.min.js');
+      const html = await page.text();
+
+      expect(page.ok()).toBe(true);
+      expect(bundle.ok()).toBe(true);
+      expect(html).toContain('src="./extended_component_library.min.js"');
+      expect(html).not.toContain('unpkg.com');
+      expect(html).not.toContain('key="YOUR_API_KEY"');
+      expect(await bundle.body()).toEqual(
+          await readFile(new URL('../dist/index.min.js', import.meta.url)));
+      expect(await readFile(new URL(
+          '../examples/js_sample_app/src/index.html', import.meta.url), 'utf8'))
+          .toContain('key="YOUR_API_KEY"');
+      expect(existsSync(new URL(
+          '../examples/js_sample_app/src/extended_component_library.min.js',
+          import.meta.url))).toBe(false);
+    });
 
 /**
  * List of sample apps that will be tested. Each of these should

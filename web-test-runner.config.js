@@ -7,13 +7,16 @@
 import {playwrightLauncher} from '@web/test-runner-playwright';
 import {jasmineTestRunnerConfig} from 'web-test-runner-jasmine';
 
+const createBrowserContext = ({browser}) =>
+    browser.newContext({locale: 'en-US'});
+
 export default {
   ...jasmineTestRunnerConfig(),
   nodeResolve: true,
   files: ['**/*test.js', '!node_modules/', '!.wireit/'],
   browsers: [
-    playwrightLauncher({ product: 'chromium' }),
-    playwrightLauncher({ product: 'firefox' }),
+    playwrightLauncher({product: 'chromium', createBrowserContext}),
+    playwrightLauncher({product: 'firefox', createBrowserContext}),
   ],
   filterBrowserLogs: (log) => !log.args[0].startsWith('Lit is in dev mode.')
 };
