@@ -75,6 +75,28 @@ export class OverlayLayout extends BaseComponent {
       new SlotValidationController(this, this.logger, ['main', 'overlay']);
 
   /**
+   * Closes the overlay on an escape keydown when nothing is focused. The event
+   * target is then the body, so the overlay's own keydown listener never sees
+   * it. This happens in Safari, which doesn't focus a button on mouse click.
+   */
+  private readonly documentKeydownEventListener = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    if (e.target === document.body || e.target === document.documentElement) {
+      this.hideOverlay();
+    }
+  };
+
+  override connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener('keydown', this.documentKeydownEventListener);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('keydown', this.documentKeydownEventListener);
+  }
+
+  /**
    * Opens the overlay panel.
    *
    * If focus is currently in the main content, the focused element will be
