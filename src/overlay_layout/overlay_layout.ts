@@ -19,7 +19,8 @@ import {getDeepActiveElement, someDeepContains} from '../utils/deep_element_acce
  * settings.
  *
  * This component helps manage keyboard focus when opening and closing the
- * overlay.
+ * overlay. Pressing Esc closes the overlay when focus is inside it or when
+ * nothing on the page has focus.
  *
  * The size of the gmpx-overlay-layout can be set directly with the `width` and
  * `height` properties. If none are provided, it will fill the size of its
@@ -73,6 +74,28 @@ export class OverlayLayout extends BaseComponent {
 
   protected slotValidator =
       new SlotValidationController(this, this.logger, ['main', 'overlay']);
+
+  /**
+   * Closes the overlay on an escape keydown when nothing is focused. The event
+   * target is then the body, so the overlay's own keydown listener never sees
+   * it. This happens in Safari, which doesn't focus a button on mouse click.
+   */
+  private readonly documentKeydownEventListener = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    if (e.target === document.body || e.target === document.documentElement) {
+      this.hideOverlay();
+    }
+  };
+
+  override connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener('keydown', this.documentKeydownEventListener);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('keydown', this.documentKeydownEventListener);
+  }
 
   /**
    * Opens the overlay panel.

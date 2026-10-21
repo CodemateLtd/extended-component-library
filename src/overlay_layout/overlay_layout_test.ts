@@ -129,6 +129,48 @@ describe('OverlayLayout', () => {
       expect(overlayLayout.hideOverlay).toHaveBeenCalledOnceWith();
     });
 
+    it('hides on an escape keydown when nothing is focused', async () => {
+      const {overlayLayout} = await prepareState();
+      spyOn(overlayLayout, 'hideOverlay');
+
+      await overlayLayout.showOverlay();
+      // With nothing focused, the keydown event target is the body. This
+      // happens in Safari after a mouse click on a button, which does not
+      // focus the button.
+      document.body.dispatchEvent(
+          new KeyboardEvent('keydown', {'key': 'Escape', 'bubbles': true}));
+
+      expect(overlayLayout.hideOverlay).toHaveBeenCalledOnceWith();
+    });
+
+    it('does not hide on a canceled escape keydown when nothing is focused',
+       async () => {
+         const {overlayLayout} = await prepareState();
+         spyOn(overlayLayout, 'hideOverlay');
+
+         await overlayLayout.showOverlay();
+         document.body.addEventListener('keydown', (e) => {
+           e.preventDefault();
+         }, {once: true});
+         document.body.dispatchEvent(new KeyboardEvent(
+             'keydown',
+             {'key': 'Escape', 'bubbles': true, 'cancelable': true}));
+
+         expect(overlayLayout.hideOverlay).not.toHaveBeenCalled();
+       });
+
+    it('stops listening for escape keydowns once disconnected', async () => {
+      const {overlayLayout} = await prepareState();
+      spyOn(overlayLayout, 'hideOverlay');
+
+      await overlayLayout.showOverlay();
+      overlayLayout.remove();
+      document.body.dispatchEvent(
+          new KeyboardEvent('keydown', {'key': 'Escape', 'bubbles': true}));
+
+      expect(overlayLayout.hideOverlay).not.toHaveBeenCalled();
+    });
+
     it('does not hide on an escape keydown outside the overlay', async () => {
       const {overlayLayout, outsideButton} = await prepareState();
       spyOn(overlayLayout, 'hideOverlay');
