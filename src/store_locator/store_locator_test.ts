@@ -295,6 +295,31 @@ describe('StoreLocator', () => {
            .not.toContain('20');
      });
 
+  it('forwards a selected route request error', async () => {
+    const {locator, locatorRoot, placePicker, resultsList} =
+        await prepareState({
+          listings: [LISTING_A],
+          featureSet: FeatureSet.ADVANCED,
+        });
+    spyOnProperty(placePicker!, 'value').and.returnValue({
+      location: new FakeLatLng(0, 0)
+    } as Partial<Place> as Place);
+    placePicker!.dispatchEvent(new Event('gmpx-placechange'));
+    await env.waitForStability();
+    (resultsList!.children[0] as HTMLElement).click();
+    await env.waitForStability();
+
+    const overview = locatorRoot.querySelector('gmpx-route-overview')!;
+    const listener = jasmine.createSpy('requestError');
+    locator.addEventListener('gmpx-requesterror', listener);
+    const error = new Error('Route unavailable');
+    overview.dispatchEvent(new RequestErrorEvent(error));
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect((listener.calls.mostRecent()?.args[0] as RequestErrorEvent).error)
+        .toBe(error);
+  });
+
   it('shows place details', async () => {
     const {resultsList, placeOverview, overlayLayout} = await prepareState(
         {listings: [LISTING_A, LISTING_B], featureSet: FeatureSet.ADVANCED});

@@ -547,12 +547,18 @@ export class StoreLocator extends BaseComponent {
       // clang-format off
       return html`
       <gmpx-route-overview no-pin
+          @gmpx-requesterror=${this.forwardRequestError}
           .originLatLng=${originLatLng}
           .destinationLatLng=${destinationLatLng}>
       </gmpx-route-overview>`;
       // clang-format on
     }
     return nothing;
+  }
+
+  private forwardRequestError(event: RequestErrorEvent) {
+    const requestErrorEvent = new RequestErrorEvent(event.error);
+    this.dispatchEvent(requestErrorEvent);
   }
 
   private renderMapPanel() {
