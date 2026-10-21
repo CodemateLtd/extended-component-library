@@ -86,7 +86,7 @@ describe('APILoader', () => {
 
     expect(scriptLoadSpy).toHaveBeenCalledOnceWith({
       key: '',
-      v: 'beta',
+      v: 'weekly',
       solutionChannel:
           `GMP_${ATTRIBUTION_SOURCE_ID}_extended_v${LIBRARY_VERSION}`,
     });
@@ -103,7 +103,7 @@ describe('APILoader', () => {
       loaderHTML: html`
             <gmpx-api-loader
               key="TEST_API_KEY"
-              version="weekly"
+              version="beta"
               language="ja"
               region="JP"
               auth-referrer-policy="origin"
@@ -116,7 +116,7 @@ describe('APILoader', () => {
         .toBe(env.fakeGoogleMapsHarness!.libraries['core']);
     expect(scriptLoadSpy).toHaveBeenCalledOnceWith({
       key: 'TEST_API_KEY',
-      v: 'weekly',
+      v: 'beta',
       language: 'ja',
       region: 'JP',
       solutionChannel: 'GMP_QB_locatorplus_v6',
@@ -225,7 +225,7 @@ describe('APILoader', () => {
 
     expect(scriptLoadSpy).toHaveBeenCalledOnceWith({
       key: 'TEST_API_KEY',
-      v: 'beta',
+      v: 'weekly',
     });
 
     waitForAnyPolling();

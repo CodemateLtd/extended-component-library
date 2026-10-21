@@ -48,12 +48,12 @@ declare global {
  * To use this component, make sure you [sign up for Google Maps Platform and
  * create an API
  * key](https://console.cloud.google.com/google/maps-apis/start).
- * By default, the API loader component will request the beta version of the
- * Maps JavaScript API, giving you access to additional components [`<gmp-map>`
- * and
- * `<gmp-advanced-marker>`](https://developers.google.com/maps/documentation/javascript/web-components/overview).
- * However, you can set the `version` attribute to select a stable (General
- * Availability) version of the SDK such as `weekly`.
+ * By default, the API loader component will request the weekly channel of the
+ * Maps JavaScript API, which Google recommends for most applications. You can
+ * set the `version` attribute to select a different [channel or
+ * version](https://developers.google.com/maps/documentation/javascript/versions),
+ * such as `quarterly`. Set it to `beta` to use features that are only
+ * available in the beta channel.
  */
 @customElement('gmpx-api-loader')
 export class APILoader extends BaseComponent {
@@ -121,7 +121,7 @@ export class APILoader extends BaseComponent {
    * [documentation](https://developers.google.com/maps/documentation/javascript/versions)
    * for more information.
    */
-  @property({reflect: true, type: String}) version = 'beta';
+  @property({reflect: true, type: String}) version = 'weekly';
 
   /** A deferred promise that resolves to the `google.maps` object. */
   private static googleMapsDeferred = new Deferred<typeof google.maps>();
