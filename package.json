@@ -195,7 +195,7 @@
       ],
       "service": {
         "readyWhen": {
-          "lineMatches": "You can now view \\S+ in the browser"
+          "lineMatches": "Local:\\s+http://localhost:8001/"
         }
       }
     },
