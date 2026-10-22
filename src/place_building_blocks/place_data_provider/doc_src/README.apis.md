@@ -4,8 +4,7 @@ Used when fetching Places data for the place specified via attribute/property.
 
 #### Documentation
 
-* When using the Maps JavaScript API beta version (default): [Place class documentation](https://developers.google.com/maps/documentation/javascript/place)
-* When using the Maps JavaScript API GA version: [Place details documentation](https://developers.google.com/maps/documentation/javascript/examples/place-details)
+* [Place class documentation](https://developers.google.com/maps/documentation/javascript/place)
 
 Please be sure to check this documentation for additional requirements and recommendations regarding your use.
 
