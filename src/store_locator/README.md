@@ -161,7 +161,7 @@ gmpx-store-locator {
   width: 100%;
   height: 40em;
   --gmpx-color-surface: #fdfaf2;
-  --gmpx-color-on-surface: ##355034;
+  --gmpx-color-on-surface: #355034;
   --gmpx-color-on-surface-variant: #8f8f8f;
   --gmpx-color-primary: #3f7843;
   --gmpx-font-family-base: "Times", serif;
