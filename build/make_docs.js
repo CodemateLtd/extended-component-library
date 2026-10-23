@@ -14,6 +14,10 @@ const BASE_PATH = resolve('.');
 const PLACE_BUILDING_BLOCKS_DIR = join('src', 'place_building_blocks');
 const ROUTE_BUILDING_BLOCKS_DIR = join('src', 'route_building_blocks');
 const ADDRESS_VALIDATION_DIR = join('src', 'address_validation');
+// Must match the <script> URL in the root doc_src/README.header.md: importing
+// the bundle from a different URL loads it a second time.
+const CDN_BUNDLE_URL =
+    'https://unpkg.com/@googlemaps/extended-component-library@0.7.0';
 
 const GLOBAL_STYLE_TOKENS = new Set([
   '--gmpx-color-surface',
@@ -286,7 +290,8 @@ function makeImportSection(
 
   const cdnUse = !isFunction ?
       'You do not need to take additional steps to use this component.' :
-      'This function will be available in the global namespace.';
+      'To use this function, import it in a module script from the same URL ' +
+          'as the &lt;script&gt; tag:';
   md += newParagraph(
       'When loading the library with a &lt;script&gt; tag (referencing the CDN bundle), please refer to the instructions in the root-level Readme. ' +
       cdnUse);
@@ -304,6 +309,12 @@ function makeImportSection(
         `When bundling your dependencies and you need to access the class \`${
             className}\` directly (less common):`);
   } else {
+    md += newParagraph(
+        '```html\n' +
+        '<script type="module">\n' +
+        `  import { ${className} } from '${CDN_BUNDLE_URL}';\n` +
+        '</script>' +
+        '\n```');
     md +=
         newParagraph(`When bundling your dependencies, import this function:`);
   }
