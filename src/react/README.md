@@ -67,7 +67,7 @@ export default function MyComponent({ address }) {
 
   const handleAddressChange = async (newAddress) => {
     const {Geocoder} = await APILoader.importLibrary('geocoding');
-    const {results} = await new Geocoder.geocode({address: newAddress});
+    const {results} = await new Geocoder().geocode({address: newAddress});
     const location = results[0]?.geometry?.location;
     if (location) {
       mapRef.current.center = location;
@@ -75,7 +75,9 @@ export default function MyComponent({ address }) {
     }
   };
 
-  useEffect(() => handleAddressChange(address), [address]);
+  useEffect(() => {
+    handleAddressChange(address).catch(console.error);
+  }, [address]);
 
   return (
     <>
