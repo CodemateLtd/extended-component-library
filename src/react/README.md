@@ -19,16 +19,18 @@ name from `@googlemaps/extended-component-library/react`. Here's an example:
 ```js
 import { APILoader, PlaceDirectionsButton, PlaceOverview } from '@googlemaps/extended-component-library/react';
 
-export default MyComponent = ({ origin }) => (
-  <>
-    <APILoader apiKey="YOUR_API_KEY" />
-    <PlaceOverview size="large" place="ChIJ39Y-tdg1fYcRQcZcBb499do" googleLogoAlreadyDisplayed>
-      <PlaceDirectionsButton slot="action" origin={origin} ariaLabel="see directions on Google Maps">
-        Directions
-      </PlaceDirectionsButton>
-    </PlaceOverview>
-  </>
-);
+export default function MyComponent({ origin }) {
+  return (
+    <>
+      <APILoader apiKey="YOUR_API_KEY" />
+      <PlaceOverview size="large" place="ChIJ39Y-tdg1fYcRQcZcBb499do" googleLogoAlreadyDisplayed>
+        <PlaceDirectionsButton slot="action" origin={origin} ariaLabel="see directions on Google Maps">
+          Directions
+        </PlaceDirectionsButton>
+      </PlaceOverview>
+    </>
+  );
+}
 ```
 
 Use the Web Component's property names (e.g. `googleLogoAlreadyDisplayed`)
@@ -65,7 +67,7 @@ export default function MyComponent({ address }) {
 
   const handleAddressChange = async (newAddress) => {
     const {Geocoder} = await APILoader.importLibrary('geocoding');
-    const {results} = await new Geocoder.geocode({address: newAddress});
+    const {results} = await new Geocoder().geocode({address: newAddress});
     const location = results[0]?.geometry?.location;
     if (location) {
       mapRef.current.center = location;
@@ -73,7 +75,9 @@ export default function MyComponent({ address }) {
     }
   };
 
-  useEffect(() => handleAddressChange(address), [address]);
+  useEffect(() => {
+    handleAddressChange(address).catch(console.error);
+  }, [address]);
 
   return (
     <>
