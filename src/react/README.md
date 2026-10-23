@@ -19,16 +19,18 @@ name from `@googlemaps/extended-component-library/react`. Here's an example:
 ```js
 import { APILoader, PlaceDirectionsButton, PlaceOverview } from '@googlemaps/extended-component-library/react';
 
-export default MyComponent = ({ origin }) => (
-  <>
-    <APILoader apiKey="YOUR_API_KEY" />
-    <PlaceOverview size="large" place="ChIJ39Y-tdg1fYcRQcZcBb499do" googleLogoAlreadyDisplayed>
-      <PlaceDirectionsButton slot="action" origin={origin} ariaLabel="see directions on Google Maps">
-        Directions
-      </PlaceDirectionsButton>
-    </PlaceOverview>
-  </>
-);
+export default function MyComponent({ origin }) {
+  return (
+    <>
+      <APILoader apiKey="YOUR_API_KEY" />
+      <PlaceOverview size="large" place="ChIJ39Y-tdg1fYcRQcZcBb499do" googleLogoAlreadyDisplayed>
+        <PlaceDirectionsButton slot="action" origin={origin} ariaLabel="see directions on Google Maps">
+          Directions
+        </PlaceDirectionsButton>
+      </PlaceOverview>
+    </>
+  );
+}
 ```
 
 Use the Web Component's property names (e.g. `googleLogoAlreadyDisplayed`)
