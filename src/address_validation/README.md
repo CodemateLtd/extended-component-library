@@ -4,8 +4,6 @@
 
 This documentation helps you use pre-built logic for analyzing the API response from the [Address Validation API](https://developers.google.com/maps/documentation/address-validation?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components).
 
-> **The Address Validation API is currently available under the [Experimental](https://developers.google.com/maps/launch-stages?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#experimental) launch stage.** Please be sure to specify `version="alpha"` if using the [API Loader](../api_loader/README.md) component to load the Google Maps JS SDK.
-
 ## Prerequisites
 
 * You will need to [enable the Address Validation API](https://developers.google.com/maps/documentation/address-validation/cloud-setup?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#enabling-apis) for your Google Maps Platform project if it is not enabled already.
@@ -90,11 +88,12 @@ import { suggestValidationAction } from '@googlemaps/extended-component-library/
 The `suggestValidationAction()` function works well when dealing with order forms or other types of address entry. You should already have a form for accepting input addresses from your customer. This example uses a simple HTML form as a placeholder for your form:
 
 ```html
-<gmpx-api-loader key="YOUR_API_KEY" version="alpha"></gmpx-api-loader>
+<gmpx-api-loader key="YOUR_API_KEY"></gmpx-api-loader>
 <form>
   <input id="address-line-1"/>
   <input id="address-line-2"/>
   <input id="address-line-3"/>
+  <input id="region-code"/>
   <input type="submit"/>
 </form>
 ```
@@ -118,7 +117,7 @@ document.querySelector('form').addEventListener('submit', async (e) => {
   const request = getRequestFromAddressForm();
   let response;
   try {
-    response = await AddressValidation.validateAddress(request);
+    response = await AddressValidation.fetchAddressValidation(request);
   } catch (e) {
     console.error('Failed to validate address', e);
     // Depending on your application, you may want to try again, or accept
@@ -129,8 +128,8 @@ document.querySelector('form').addEventListener('submit', async (e) => {
   // Take a next action based on the response
   const {suggestedAction} = suggestValidationAction(response);
   if (suggestedAction === 'ACCEPT') {
-    // Submit the form, passing `response.result.address.formattedAddress` as
-    // the cleaned address.
+    // Submit the form, passing `response.address.formattedAddress` as the
+    // cleaned address.
   } else if (suggestedAction === 'CONFIRM') {
     // Prompt the user to confirm the entered address before submitting.
   } else if (suggestedAction === 'FIX') {
@@ -143,14 +142,16 @@ document.querySelector('form').addEventListener('submit', async (e) => {
 });
 
 // Update this function to use the address form inputs on your own page. The
-// returned object is an Address Validation API request.
+// returned object is an Address Validation API request. Maps JS requires
+// `regionCode`, the CLDR region code of the address's country, such as 'US'.
 function getRequestFromAddressForm() {
   const addressLines = [
     document.getElementById('address-line-1').value,
     document.getElementById('address-line-2').value,
     document.getElementById('address-line-3').value,
   ].filter(Boolean);
-  return {address: {addressLines}};
+  const regionCode = document.getElementById('region-code').value;
+  return {address: {regionCode, addressLines}};
 }
 ```
 
