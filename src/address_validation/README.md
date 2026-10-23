@@ -71,7 +71,13 @@ for guidance.
 
 #### Importing
 
-When loading the library with a &lt;script&gt; tag (referencing the CDN bundle), please refer to the instructions in the root-level Readme. This function will be available in the global namespace.
+When loading the library with a &lt;script&gt; tag (referencing the CDN bundle), please refer to the instructions in the root-level Readme. To use this function, import it in a module script from the same URL as the &lt;script&gt; tag:
+
+```html
+<script type="module">
+  import { suggestValidationAction } from 'https://unpkg.com/@googlemaps/extended-component-library@0.7.0';
+</script>
+```
 
 When bundling your dependencies, import this function:
 
