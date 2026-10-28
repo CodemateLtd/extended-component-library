@@ -9,6 +9,7 @@ import {customElement, property} from 'lit/decorators.js';
 
 import {BaseComponent} from '../base/base_component.js';
 import {ATTRIBUTION_SOURCE_ID, LIBRARY_VERSION} from '../base/constants.js';
+import {RequestErrorEvent} from '../base/events.js';
 import {LoggingController} from '../base/logging_controller.js';
 import {Deferred} from '../utils/deferred.js';
 
@@ -23,10 +24,14 @@ function getGoogleMaps(): typeof google.maps|undefined {
   }
 }
 
-/** Imports Web Components defined by the Maps JavaScript API. */
-function loadComponentsFromMapsJS(googleMaps: typeof google.maps) {
-  googleMaps.importLibrary('maps');
-  googleMaps.importLibrary('marker');
+/**
+ * Returns a deferred for the `loaded` promise. Its rejection is handled, since
+ * a load failure is already reported to the console and through an event.
+ */
+function createLoadedDeferred(): Deferred<void> {
+  const deferred = new Deferred<void>();
+  deferred.promise.catch(() => {});
+  return deferred;
 }
 
 /** Returns a `LoggingController` owned by the element, if one exists. */
@@ -54,6 +59,14 @@ declare global {
  * `<gmp-advanced-marker>`](https://developers.google.com/maps/documentation/javascript/web-components/overview).
  * However, you can set the `version` attribute to select a stable (General
  * Availability) version of the SDK such as `weekly`.
+ *
+ * @event {Event} gmpx-load - Fired on the first API loader element on the page
+ * when the Maps JavaScript API and the libraries for its map and marker
+ * components have loaded. It fires even if the API key is rejected; see
+ * `loaded`. (React: onLoad)
+ * @event {RequestErrorEvent} gmpx-requesterror - Fired on the first API loader
+ * element on the page if the Maps JavaScript API fails to load.
+ * (React: onRequestError)
  */
 @customElement('gmpx-api-loader')
 export class APILoader extends BaseComponent {
@@ -123,8 +136,28 @@ export class APILoader extends BaseComponent {
    */
   @property({reflect: true, type: String}) version = 'beta';
 
+  /**
+   * A promise that resolves when the Maps JavaScript API and the libraries for
+   * its map and marker components have loaded, and rejects if they fail to
+   * load. It stays pending until the API is configured, for example while
+   * `key` is unset, and reflects only the first attempt to load. The same
+   * promise is shared by all API loader elements on the page.
+   *
+   * A rejected API key does not reject the promise: the libraries still load,
+   * and the Maps JavaScript API reports the key error by calling the page's
+   * global
+   * [`gm_authFailure`](https://developers.google.com/maps/documentation/javascript/events#auth-errors)
+   * function.
+   */
+  get loaded(): Promise<void> {
+    return APILoader.loadedDeferred.promise;
+  }
+
   /** A deferred promise that resolves to the `google.maps` object. */
   private static googleMapsDeferred = new Deferred<typeof google.maps>();
+
+  /** A deferred promise that settles when the API's components load. */
+  private static loadedDeferred = createLoadedDeferred();
 
   /** Whether the inline script has been invoked by this component. */
   private static inlineScriptLoaded = false;
@@ -191,7 +224,7 @@ export class APILoader extends BaseComponent {
       });
       APILoader.inlineScriptLoaded = true;
       APILoader.googleMapsDeferred.resolve(googleMaps);
-      loadComponentsFromMapsJS(googleMaps);
+      APILoader.loadComponentsFromMapsJS(googleMaps, this.logger);
     }
   }
 
@@ -215,10 +248,14 @@ export class APILoader extends BaseComponent {
   static async importLibrary(library: string, consumer?: HTMLElement) {
     let googleMaps = APILoader.googleMapsDeferred.value;
     if (!googleMaps) {
-      APILoader.pollForGoogleMaps(
-          /* numRetries= */ 5, /* interval= */ 1000,
-          consumer && getLogger(consumer));
-      googleMaps = await APILoader.googleMapsDeferred.promise;
+      // Only this request fails if polling times out; the shared promise stays
+      // pending so that later requests succeed once the API is configured.
+      googleMaps = await new Promise<typeof google.maps>((resolve, reject) => {
+        APILoader.googleMapsDeferred.promise.then(resolve);
+        APILoader.pollForGoogleMaps(
+            /* numRetries= */ 5, /* interval= */ 1000, reject,
+            consumer && getLogger(consumer));
+      });
     }
     return googleMaps.importLibrary(library);
   }
@@ -233,12 +270,40 @@ export class APILoader extends BaseComponent {
     delete APILoader.instance;
     APILoader.inlineScriptLoaded = false;
     APILoader.googleMapsDeferred = new Deferred<typeof google.maps>();
+    APILoader.loadedDeferred = createLoadedDeferred();
+  }
+
+  /**
+   * Imports Web Components defined by the Maps JavaScript API, then settles
+   * `loaded` and notifies the configuring API loader element of the result.
+   * @nocollapse
+   */
+  private static async loadComponentsFromMapsJS(
+      googleMaps: typeof google.maps, logger?: LoggingController) {
+    const {loadedDeferred, instance} = APILoader;
+    try {
+      await Promise.all([
+        googleMaps.importLibrary('maps'),
+        googleMaps.importLibrary('marker'),
+      ]);
+    } catch (error: unknown) {
+      (logger ?? console)
+          .error('Failed to load the Google Maps JavaScript API.', error);
+      // Pass the rejection reason on unchanged; `Deferred` types it as Error.
+      loadedDeferred.reject(error as Error);
+      instance?.dispatchEvent(new RequestErrorEvent(error));
+      return;
+    }
+    loadedDeferred.resolve();
+    instance?.dispatchEvent(new Event('gmpx-load'));
   }
 
   /** @nocollapse */
   private static pollForGoogleMaps(
-      numRetries: number, interval: number, logger?: LoggingController,
-      pollCount = 0) {
+      numRetries: number, interval: number, onTimeout: (error: Error) => void,
+      logger?: LoggingController, pollCount = 0) {
+    // Stop if an API loader has initialized the API since polling started.
+    if (APILoader.googleMapsDeferred.value) return;
     const googleMaps = getGoogleMaps();
     if (googleMaps) {
       // Display a warning if `google.maps` is not present in the global
@@ -255,14 +320,14 @@ export class APILoader extends BaseComponent {
                 '(https://goo.gle/js-api-loading) instead.');
       }
       APILoader.googleMapsDeferred.resolve(googleMaps);
-      loadComponentsFromMapsJS(googleMaps);
+      APILoader.loadComponentsFromMapsJS(googleMaps, logger);
     } else if (numRetries > 0) {
       window.setTimeout(() => {
         APILoader.pollForGoogleMaps(
-            numRetries - 1, interval, logger, pollCount + 1);
+            numRetries - 1, interval, onTimeout, logger, pollCount + 1);
       }, interval);
     } else {
-      // Throw an error if the Maps JavaScript API is not initialized after
+      // Report an error if the Maps JavaScript API is not initialized after
       // several polling attempts. This should help developers debug scenarios
       // where they forgot to include an API loader or script tag.
       let errorMessage = logger ?
@@ -274,7 +339,7 @@ export class APILoader extends BaseComponent {
       errorMessage += 'Please ensure you have a <gmpx-api-loader> on the ' +
           'page with a valid API key. ' +
           'https://github.com/googlemaps/extended-component-library';
-      throw new Error(errorMessage);
+      onTimeout(new Error(errorMessage));
     }
   }
 }
