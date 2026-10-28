@@ -4,54 +4,58 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// TODO: Align with 3.65 typings
-// @ts-nocheck
-
 // import 'jasmine'; (google3-only)
 
-import {Address, AddressComponent, AddressValidation, Verdict} from '../utils/googlemaps_types.js';
+import {Address, AddressComponent, AddressValidation, mapsJsData, Verdict} from '../utils/googlemaps_types.js';
 
 import {SuggestedAction, suggestValidationAction} from './suggest_validation_action.js';
 
-const GOOD_VERDICT: Verdict = {
+const GOOD_VERDICT = {
   inputGranularity: 'PREMISE',
   validationGranularity: 'PREMISE',
   geocodeGranularity: 'PREMISE',
-  isAddressComplete: true,
+  addressComplete: true,
   hasUnconfirmedComponents: false,
   hasInferredComponents: false,
   hasReplacedComponents: false,
-};
+  possibleNextAction: null,
+} satisfies Verdict;
 
-const LOCALITY_COMPONENT: AddressComponent = {
-  componentName: {text: 'Mountain View', languageCode: 'en'},
+const LOCALITY_COMPONENT = {
+  componentName: 'Mountain View',
+  componentNameLanguageCode: 'en',
   componentType: 'locality',
   confirmationLevel: null,
-  isInferred: false,
-  isSpellCorrected: false,
-  isReplaced: false,
-  isUnexpected: false
-};
+  inferred: false,
+  spellCorrected: false,
+  replaced: false,
+  unexpected: false
+} satisfies AddressComponent;
 
 function makeFakeValidationResponse(
-    address: Partial<Address>, verdict: Verdict|null): AddressValidation {
-  return {
+    address: Partial<Address>|null, verdict: Verdict|null): AddressValidation {
+  return mapsJsData({
     verdict,
-    address: {
+    address: address === null ? null : mapsJsData({
       formattedAddress: null,
       postalAddress: null,
       components: [],
+      missingComponentTypes: [],
+      unconfirmedComponentTypes: [],
+      unresolvedTokens: [],
       ...address
-    },
-
+    }),
+    geocode: null,
+    metadata: null,
     responseId: '',
-  };
+    uspsData: null,
+  });
 }
 
 describe('SuggestValidationAction', () => {
   it('returns FIX when an address is missing', () => {
-    const suggestion = suggestValidationAction(
-        {address: null, responseId: '', verdict: GOOD_VERDICT});
+    const suggestion =
+        suggestValidationAction(makeFakeValidationResponse(null, GOOD_VERDICT));
     expect(suggestion.suggestedAction).toBe(SuggestedAction.FIX);
   });
 
@@ -97,11 +101,24 @@ describe('SuggestValidationAction', () => {
         {
           components: [{
             ...LOCALITY_COMPONENT,
-            isInferred: true,
+            inferred: true,
           }]
         },
         GOOD_VERDICT));
     expect(suggestion.suggestedAction).toBe(SuggestedAction.CONFIRM);
+  });
+
+  it('returns ACCEPT when only a minor component is inferred', () => {
+    const suggestion = suggestValidationAction(makeFakeValidationResponse(
+        {
+          components: [{
+            ...LOCALITY_COMPONENT,
+            componentType: 'postal_code',
+            inferred: true,
+          }]
+        },
+        GOOD_VERDICT));
+    expect(suggestion.suggestedAction).toBe(SuggestedAction.ACCEPT);
   });
 
   it('returns CONFIRM when there is a replaced component', () => {
@@ -114,7 +131,18 @@ describe('SuggestValidationAction', () => {
     const suggestion = suggestValidationAction(makeFakeValidationResponse(
         {
           missingComponentTypes: ['subpremise'],
-          postalAddress: {regionCode: 'US'}
+          postalAddress: mapsJsData({
+            addressLines: [],
+            administrativeArea: null,
+            languageCode: null,
+            locality: null,
+            organization: null,
+            postalCode: null,
+            recipients: [],
+            regionCode: 'US',
+            sortingCode: null,
+            sublocality: null,
+          })
         },
         GOOD_VERDICT));
     expect(suggestion.suggestedAction).toBe(SuggestedAction.ADD_SUBPREMISES);
