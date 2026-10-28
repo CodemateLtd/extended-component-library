@@ -45,6 +45,13 @@ The components in this library make use of Google Maps Platform APIs. To start, 
 
 When you sign up, by default, all APIs will be enabled, but you can opt to enable only the APIs needed for each component by referencing the “APIs and pricing" section in that component's documentation. 
 
+Your API key is part of your page, so anyone who visits it can see the key. To limit who can use it, and what they can use it for, restrict the key in the Google Cloud console:
+
+- **Website restriction:** add each origin that serves your page, including the scheme and any port, such as `https://www.example.com`. Add the origins you use for local development too, such as `http://localhost:8000`, or use a separate key for development.
+- **API restrictions:** select the Maps JavaScript API and the APIs listed in the "APIs and Pricing" section of each component you use.
+
+You're financially responsible for charges caused by abuse of an unrestricted key. For more information, see the [Google Maps Platform security guidance](https://developers.google.com/maps/api-security-best-practices).
+
 ## Usage
 
 This library contains a set of [Web Components](https://developer.mozilla.org/en-US/docs/Web/Web_Components), usable anywhere in the HTML of your web app. Web components are supported in all modern browsers and expose a framework-agnostic mechanism for encapsulating UI and functionality.
