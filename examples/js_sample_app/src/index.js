@@ -16,12 +16,12 @@ const closeButton = document.getElementById('close-button');
 
 picker.addEventListener('gmpx-placechange', () => {
   overview.place = picker.value;
+  dataProvider.place = picker.value;
   if (picker.value == null) {
     map.center = DEFAULT_CENTER;
     marker.position = undefined;
     map.zoom = 4;
   } else {
-    dataProvider.place = picker.value;
     map.center = picker.value.location;
     marker.position = picker.value.location;
     map.zoom = 16;
