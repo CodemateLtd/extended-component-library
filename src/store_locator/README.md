@@ -188,9 +188,9 @@ Used to display a map.
 
 * [SKU: Dynamic Maps](https://developers.google.com/maps/documentation/javascript/usage-and-billing?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#dynamic-maps)
 
-### Places API
+### Places API (New)
 
-This component uses the Places API in two ways:
+This component uses the Places API (New) in two ways:
 
 1. Places Autocomplete to help an end user specify their location (intermediate and advanced feature sets only).
 2. Place Details to view more information about a selected listing (advanced feature set only).
@@ -198,10 +198,10 @@ This component uses the Places API in two ways:
 #### Documentation
 
 * Autocomplete search for the end user's location (intermediate and advanced feature sets only):
-  * Places API [Place Autocomplete Widget documentation](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components).
+  * [Place Autocomplete Widget documentation](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components)
 * Fetching Places data for the "view details" panel (advanced feature set only):
   * [Place class documentation](https://developers.google.com/maps/documentation/javascript/place?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components)
-  * Displaying Places photos (advanced feature set only): [Photos documentation](https://developers.google.com/maps/documentation/javascript/places?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#places_photos)
+  * Displaying Places photos (advanced feature set only): [Photos documentation](https://developers.google.com/maps/documentation/javascript/place-photos?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components)
 
 Please be sure to check this documentation for additional requirements and recommendations regarding your use.
 

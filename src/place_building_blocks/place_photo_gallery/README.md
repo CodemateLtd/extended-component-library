@@ -59,13 +59,13 @@ You can use most built-in CSS properties to control the positioning or display o
 
 In addition to the [Maps JavaScript API](https://developers.google.com/maps/documentation/javascript?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components), this component relies on the following Google Maps Platform APIs which may incur cost and must be enabled.
 
-### Places Photos API
+### Places API (New)
 
-In addition to any APIs used by the Place Data Provider component, Photo Gallery relies on the Places Photos API to load image content for images associated with a Place.
+Photo Gallery loads the photos of its place through Places API (New), the same API the Place Data Provider component uses. It needs no other API.
 
 #### Documentation
 
-Places API [Photos documentation](https://developers.google.com/maps/documentation/javascript/places?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#places_photos). Please be sure to check this documentation for additional requirements and recommendations regarding your use.
+[Place Photos documentation](https://developers.google.com/maps/documentation/javascript/place-photos?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components). Please be sure to check this documentation for additional requirements and recommendations regarding your use.
 
 #### Pricing
 

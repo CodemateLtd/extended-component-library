@@ -67,7 +67,7 @@ and dispatches a `gmpx-requesterror` event if the fetch fails.
 
 In addition to the [Maps JavaScript API](https://developers.google.com/maps/documentation/javascript?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components), this component relies on the following Google Maps Platform APIs which may incur cost and must be enabled.
 
-### Places API
+### Places API (New)
 
 Used when fetching Places data for the place specified via attribute/property.
 
