@@ -164,7 +164,7 @@ If your app already fetches data from a Places API, you can still use Place Over
 
 In addition to the [Maps JavaScript API](https://developers.google.com/maps/documentation/javascript?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components), this component relies on the following Google Maps Platform APIs which may incur cost and must be enabled.
 
-### Places API
+### Places API (New)
 
 Used when fetching Places data for the place specified via attribute/property.
 
@@ -173,7 +173,7 @@ Used when fetching Places data for the place specified via attribute/property.
 * Fetching Places data:
     * Maps JavaScript API beta version (default): [Place class documentation](https://developers.google.com/maps/documentation/javascript/place?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components)
     * Maps JavaScript API GA version: [Place details documentation](https://developers.google.com/maps/documentation/javascript/examples/place-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components)
-* Displaying Places photos (used in medium, large, and x-large sizes): [Photos documentation](https://developers.google.com/maps/documentation/javascript/places?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#places_photos)
+* Displaying Places photos (used in medium, large, and x-large sizes): [Photos documentation](https://developers.google.com/maps/documentation/javascript/place-photos?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components)
 
 Please be sure to check this documentation for additional requirements and recommendations regarding your use.
 

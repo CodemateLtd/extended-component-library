@@ -1,4 +1,4 @@
-### Places API
+### Places API (New)
 
 Used when fetching Places data for the place specified via attribute/property.
 
@@ -7,7 +7,7 @@ Used when fetching Places data for the place specified via attribute/property.
 * Fetching Places data:
     * Maps JavaScript API beta version (default): [Place class documentation](https://developers.google.com/maps/documentation/javascript/place)
     * Maps JavaScript API GA version: [Place details documentation](https://developers.google.com/maps/documentation/javascript/examples/place-details)
-* Displaying Places photos (used in medium, large, and x-large sizes): [Photos documentation](https://developers.google.com/maps/documentation/javascript/places#places_photos)
+* Displaying Places photos (used in medium, large, and x-large sizes): [Photos documentation](https://developers.google.com/maps/documentation/javascript/place-photos)
 
 Please be sure to check this documentation for additional requirements and recommendations regarding your use.
 
