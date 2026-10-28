@@ -30,10 +30,10 @@ import '@googlemaps/extended-component-library/overlay_layout.js';
 Alternatively, we provide a CDN-hosted bundle that you can include directly in your HTML file as a [module script](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules#applying_the_module_to_your_html):
 
 ```html
-<script type="module" src="https://unpkg.com/@googlemaps/extended-component-library"></script>
+<script type="module" src="https://unpkg.com/@googlemaps/extended-component-library@0.7.0"></script>
 ```
 
-When using the CDN-hosted bundle, all components are available globally, and don’t require further imports. *Please note that unpkg is unaffiliated with Google Maps Platform and using their CDN may come with its own terms and expectations.*
+When using the CDN-hosted bundle, all components are available globally, and don’t require further imports. The version in the URL is fixed, so new releases don’t reach your page until you change it. A newer version might be available. To find newer versions and check them for breaking changes, see the [changelog](CHANGELOG.md). *Please note that unpkg is unaffiliated with Google Maps Platform and using their CDN may come with its own terms and expectations.*
 
 ### Getting your API key
 
@@ -53,7 +53,8 @@ This example shows how to display information about a particular place, purely i
 
 ```html
 <!-- Please note unpkg.com is unaffiliated with Google Maps Platform -->
-<script type="module" src="https://unpkg.com/@googlemaps/extended-component-library"></script>
+<!-- A newer version than the one in this URL might be available -->
+<script type="module" src="https://unpkg.com/@googlemaps/extended-component-library@0.7.0"></script>
 
 <!-- Configure and load the Maps JS SDK with your API key -->
 <gmpx-api-loader key="YOUR_API_KEY"></gmpx-api-loader>
@@ -70,7 +71,8 @@ Web Components are also designed to be used with JavaScript. Here’s an example
 
 ```html
 <!-- Please note unpkg.com is unaffiliated with Google Maps Platform -->
-<script type="module" src="https://unpkg.com/@googlemaps/extended-component-library"></script>
+<!-- A newer version than the one in this URL might be available -->
+<script type="module" src="https://unpkg.com/@googlemaps/extended-component-library@0.7.0"></script>
 
 <!-- Configure and load the Maps JS SDK with your API key -->
 <gmpx-api-loader key="YOUR_API_KEY"></gmpx-api-loader>
