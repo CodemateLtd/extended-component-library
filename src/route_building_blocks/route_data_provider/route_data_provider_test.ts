@@ -79,6 +79,38 @@ describe('RouteDataProvider', () => {
     expect(provider.contextRoute).toBe(FAKE_ROUTE);
   });
 
+  it('reports one error when a listener reassigns equal coordinates',
+     async () => {
+       const requestError = Object.assign(new Error('Invalid route'), {
+         code: 'INVALID_ARGUMENT',
+         endpoint: 'ROUTES_COMPUTE_ROUTES',
+         name: 'MapsRequestError',
+       });
+       const handler = spyOn(env.fakeGoogleMapsHarness!, 'computeRoutesHandler')
+                           .and.rejectWith(requestError);
+       const origin = {lat: 1, lng: 2};
+       const root = env.render(html`
+         <gmpx-route-data-provider
+             .originLatLng=${origin} destination-address="B">
+         </gmpx-route-data-provider>`);
+       const provider =
+           root.querySelector<RouteDataProvider>('gmpx-route-data-provider')!;
+       const listener = jasmine.createSpy('requestError').and.callFake(() => {
+         if (listener.calls.count() < 5) {
+           provider.originLatLng = {lat: 1, lng: 2};
+         }
+       });
+       provider.addEventListener('gmpx-requesterror', listener);
+
+       for (let i = 0; i < 10; i++) {
+         await env.waitForStability();
+         await Promise.resolve();
+       }
+
+       expect(handler).toHaveBeenCalledTimes(1);
+       expect(listener).toHaveBeenCalledTimes(1);
+     });
+
   it('fetches a route with place-id attributes', async () => {
     const {provider, routeSpy} = await prepareState(html`
       <gmpx-route-data-provider origin-place-id="abc" destination-place-id="123">

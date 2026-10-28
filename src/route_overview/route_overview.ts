@@ -13,6 +13,7 @@ import {customElement, property} from 'lit/decorators.js';
 import {when} from 'lit/directives/when.js';
 
 import {BaseComponent} from '../base/base_component.js';
+import {RequestErrorEvent} from '../base/events.js';
 import {LAT_LNG_LITERAL_ATTRIBUTE_CONVERTER} from '../utils/attribute_converters.js';
 import type {DirectionsRoute, LatLng, LatLngLiteral, Route} from '../utils/googlemaps_types.js';
 
@@ -113,6 +114,7 @@ export class RouteOverview extends BaseComponent {
     // clang-format off
     return html`
       <gmpx-route-data-provider
+          @gmpx-requesterror=${this.forwardRequestError}
           .destinationLatLng=${this.destinationLatLng}
           .destinationPlaceId=${this.destinationPlaceId}
           .destinationAddress=${this.destinationAddress}
@@ -161,6 +163,12 @@ export class RouteOverview extends BaseComponent {
       </gmpx-route-data-provider>
     `;
     // clang-format on
+  }
+
+  private forwardRequestError(event: RequestErrorEvent) {
+    console.error(event.error);
+    const requestErrorEvent = new RequestErrorEvent(event.error);
+    this.dispatchEvent(requestErrorEvent);
   }
 }
 

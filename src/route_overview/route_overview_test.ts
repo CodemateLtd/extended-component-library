@@ -8,10 +8,12 @@
 
 import {html, TemplateResult} from 'lit';
 
+import {RequestErrorEvent} from '../base/events.js';
 import {LoggingController} from '../base/logging_controller.js';
 import {RouteDataProvider} from '../route_building_blocks/route_data_provider/route_data_provider.js';
 import {RouteMarker} from '../route_building_blocks/route_marker/route_marker.js';
 import {RoutePolyline} from '../route_building_blocks/route_polyline/route_polyline.js';
+import {RoutesController} from '../route_building_blocks/routes_controller.js';
 import {Environment} from '../testing/environment.js';
 import {makeFakeRoute} from '../testing/fake_route.js';
 
@@ -23,6 +25,10 @@ describe('RouteOverview', () => {
 
   beforeEach(() => {
     env.defineFakeAdvancedMarkerElement();
+  });
+
+  afterEach(() => {
+    RoutesController.reset();
   });
 
   async function prepareState(template?: TemplateResult) {
@@ -83,6 +89,69 @@ describe('RouteOverview', () => {
     expect(provider.originAddress).toEqual('456');
     expect(provider.travelMode).toEqual('walking');
   });
+
+  it('reports a failed route request on the overview', async () => {
+    const requestError = Object.assign(new Error('Invalid route'), {
+      code: 'INVALID_ARGUMENT',
+      endpoint: 'ROUTES_COMPUTE_ROUTES',
+      name: 'MapsRequestError',
+    });
+    spyOn(env.fakeGoogleMapsHarness!, 'computeRoutesHandler')
+        .and.rejectWith(requestError);
+    const consoleError = spyOn(console, 'error');
+    const listener = jasmine.createSpy('requestError');
+    env.render(html`
+      <gmpx-route-overview
+          @gmpx-requesterror=${listener}
+          origin-address="A" destination-address="B">
+      </gmpx-route-overview>`);
+
+    await env.waitForStability();
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+    await env.waitForStability();
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    const event =
+        listener.calls.mostRecent()?.args[0] as RequestErrorEvent | undefined;
+    expect(event).toEqual(jasmine.any(RequestErrorEvent));
+    expect(event?.error).toBe(requestError);
+    expect(consoleError).toHaveBeenCalledOnceWith(requestError);
+  });
+
+  it('reports one error when a listener reassigns equal coordinates',
+     async () => {
+       const requestError = Object.assign(new Error('Invalid route'), {
+         code: 'INVALID_ARGUMENT',
+         endpoint: 'ROUTES_COMPUTE_ROUTES',
+         name: 'MapsRequestError',
+       });
+       const handler = spyOn(env.fakeGoogleMapsHarness!, 'computeRoutesHandler')
+                           .and.rejectWith(requestError);
+       spyOn(console, 'error');
+       const origin = {lat: 1, lng: 2};
+       const root = env.render(html`
+         <gmpx-route-overview
+             .originLatLng=${origin} destination-address="B">
+         </gmpx-route-overview>`);
+       const overview =
+           root.querySelector<RouteOverview>('gmpx-route-overview')!;
+       const listener = jasmine.createSpy('requestError').and.callFake(() => {
+         if (listener.calls.count() < 5) {
+           overview.originLatLng = {lat: 1, lng: 2};
+         }
+       });
+       overview.addEventListener('gmpx-requesterror', listener);
+
+       for (let i = 0; i < 10; i++) {
+         await env.waitForStability();
+         await Promise.resolve();
+       }
+
+       expect(handler).toHaveBeenCalledTimes(1);
+       expect(listener).toHaveBeenCalledTimes(1);
+     });
 
   it('logs an error when setting multiple origins', async () => {
     const {errorSpy} = await prepareState(html`
