@@ -1,0 +1,59 @@
+<!--
+  Copyright 2026 Google LLC
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <script type="module" src="./extended_component_library.min.js"></script>
+    <link href="./style.css" rel="stylesheet">
+    <title>GMPX - Address Validation Sample App</title>
+  </head>
+  <body>
+    <gmpx-api-loader key="YOUR_API_KEY"></gmpx-api-loader>
+    <main>
+      <h1>Address Validation</h1>
+      <form id="address-form">
+        <h2>Validate an address</h2>
+        <label for="address-line-1">Address line 1</label>
+        <input id="address-line-1" autocomplete="address-line1" required>
+        <label for="address-line-2">Address line 2</label>
+        <input id="address-line-2" autocomplete="address-line2">
+        <label for="region-code">Region code</label>
+        <input id="region-code" value="US" required pattern="[A-Za-z]{2}"
+            aria-describedby="region-code-hint">
+        <p id="region-code-hint" class="hint">
+          The two-letter CLDR region code of the address's country, such as US.
+        </p>
+        <button type="submit">Validate</button>
+      </form>
+      <form id="sample-form">
+        <h2>Or try a sample response</h2>
+        <p class="hint">Sample responses don't call the API.</p>
+        <label for="sample-response">Sample response</label>
+        <select id="sample-response"></select>
+        <button type="submit">Show suggested action</button>
+      </form>
+      <section aria-labelledby="result-heading">
+        <h2 id="result-heading">Result</h2>
+        <output id="result" aria-live="polite">
+          Validate an address or pick a sample response.
+        </output>
+      </section>
+    </main>
+    <script type="module" src="./index.js"></script>
+  </body>
+</html>
