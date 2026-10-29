@@ -175,6 +175,8 @@ gmpx-store-locator {
 }
 ```
 
+For a runnable app that configures listings and map options, shows directions, and reports request errors, see the [Store Locator sample app](../../examples/store_locator_sample_app).
+
 
 
 ## APIs and Pricing
