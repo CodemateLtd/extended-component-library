@@ -49,6 +49,18 @@ describe('place field boolean test', () => {
     expect(el).toBeInstanceOf(PlaceFieldBoolean);
   });
 
+  it('requests the fields that Place.isOpen() fetches internally', () => {
+    const el = document.createElement('gmpx-place-field-boolean');
+    el.field = 'isOpen()';
+
+    expect(el.getRequiredFields()).toEqual([
+      'businessStatus',
+      'currentOpeningHours',
+      'regularOpeningHours',
+      'utcOffsetMinutes',
+    ]);
+  });
+
   it('renders the true slot for all fields using a fake Place', async () => {
     const truePlace = makeFakePlace({
       id: '1234567890',
@@ -69,6 +81,7 @@ describe('place field boolean test', () => {
 
       businessStatus: 'OPERATIONAL',
       regularOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
+      currentOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
       utcOffsetMinutes: 0,
       isOpen: async () => true,
     });
@@ -105,6 +118,7 @@ describe('place field boolean test', () => {
 
       businessStatus: 'OPERATIONAL',
       regularOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
+      currentOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
       utcOffsetMinutes: 0,
       isOpen: async () => false,
     });
@@ -204,15 +218,17 @@ describe('place field boolean test', () => {
   });
 
   it('handles isOpen on a PlaceResult', async () => {
-    // Note: tests inject a fake Maps JS API, which stubs out the real
-    // Place class constructor with `makeFakePlace()`. Refer to that function's
-    // behavior for `isOpen()`, in combination with PlaceBooleanField's own
+    // Note: a `Place` made from a `PlaceResult` has no `currentOpeningHours`,
+    // so `isOpen` comes from the library's own calculation using
+    // `opening_hours.periods`, in combination with PlaceBooleanField's own
     // field checking.
     const openPlaceResult: PlaceResult = {
       business_status: 'OPERATIONAL',
       utc_offset_minutes: 0,
       opening_hours: {
-        // This gets discarded and replaced with the fake implementation.
+        // Open 24/7.
+        periods: [{open: {day: 0, hours: 0, minutes: 0, time: '0000'}}],
+        // This gets discarded in favor of the library's calculation.
         isOpen: () => undefined
       }
     };
@@ -220,7 +236,10 @@ describe('place field boolean test', () => {
       business_status: 'CLOSED_TEMPORARILY',
       utc_offset_minutes: 0,
       opening_hours: {
-        // This gets discarded and replaced with the fake implementation.
+        // No opening periods, so never open. The library's calculation
+        // doesn't read the business status.
+        periods: [],
+        // This gets discarded in favor of the library's calculation.
         isOpen: () => undefined
       }
     };
@@ -247,6 +266,7 @@ describe('place field boolean test', () => {
       id: '1234567890',
       businessStatus: 'OPERATIONAL',
       regularOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
+      currentOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
       utcOffsetMinutes: 0,
       isOpen: async () => true,
     });
@@ -254,7 +274,9 @@ describe('place field boolean test', () => {
       business_status: 'OPERATIONAL',
       utc_offset_minutes: 0,
       opening_hours: {
-        // This gets discarded and replaced with the fake implementation.
+        // Open 24/7.
+        periods: [{open: {day: 0, hours: 0, minutes: 0, time: '0000'}}],
+        // This gets discarded in favor of the library's calculation.
         isOpen: () => undefined
       }
     };
@@ -291,6 +313,13 @@ describe('place field boolean test', () => {
       regularOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
       isOpen: isOpenSpy,
     });
+    const noCurrentOpeningHoursPlace = makeFakePlace({
+      id: '1234567890',
+      businessStatus: 'OPERATIONAL',
+      regularOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
+      utcOffsetMinutes: 0,
+      isOpen: isOpenSpy,
+    });
 
     await prepareState(html`
       <gmpx-place-field-boolean field="isOpen()" .place=${
@@ -300,10 +329,41 @@ describe('place field boolean test', () => {
       </gmpx-place-field-boolean>
       <gmpx-place-field-boolean field="isOpen()" .place=${noUtcOffsetPlace}>
       </gmpx-place-field-boolean>
+      <gmpx-place-field-boolean field="isOpen()" .place=${
+        noCurrentOpeningHoursPlace}>
+      </gmpx-place-field-boolean>
     `);
 
     expect(isOpenSpy).not.toHaveBeenCalled();
   });
+
+  it('calculates isOpen from regular hours without currentOpeningHours',
+     async () => {
+       const isOpenSpy = jasmine.createSpy('isOpen').and.resolveTo(false);
+       const place = makeFakePlace({
+         id: '1234567890',
+         businessStatus: 'OPERATIONAL',
+         regularOpeningHours: mapsJsData({
+           periods: [
+             mapsJsData({
+               open: mapsJsData({day: 0, hour: 0, minute: 0}),
+               close: null,
+             }),
+           ],
+           weekdayDescriptions: [],
+           specialDays: [],
+         }),
+         utcOffsetMinutes: 0,
+         isOpen: isOpenSpy,
+       });
+
+       const [booleanEl] = await prepareState(
+           html`<gmpx-place-field-boolean field="isOpen()" .place=${
+               place}></gmpx-place-field-boolean>`);
+
+       expectTrueSlot(booleanEl);
+       expect(isOpenSpy).not.toHaveBeenCalled();
+     });
 
   it('polls when displaying isOpen()', async () => {
     const isOpenSpy = jasmine.createSpy('isOpen').and.resolveTo(true);
@@ -311,6 +371,7 @@ describe('place field boolean test', () => {
       id: '1234567890',
       businessStatus: 'OPERATIONAL',
       regularOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
+      currentOpeningHours: mapsJsData({periods: [], weekdayDescriptions: [], specialDays: []}),
       utcOffsetMinutes: 0,
       isOpen: isOpenSpy,
     });
@@ -349,6 +410,16 @@ describe('place field boolean test', () => {
       id: '1234567890',
       businessStatus: 'OPERATIONAL',
       regularOpeningHours: mapsJsData({
+        periods: [
+          mapsJsData({
+            open: mapsJsData({day: 0, hour: 0, minute: 0}),
+            close: null,
+          }),
+        ],
+        weekdayDescriptions: [],
+        specialDays: [],
+      }),
+      currentOpeningHours: mapsJsData({
         periods: [
           mapsJsData({
             open: mapsJsData({day: 0, hour: 0, minute: 0}),

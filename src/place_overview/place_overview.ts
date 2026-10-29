@@ -331,9 +331,6 @@ export class PlaceOverview extends BaseComponent {
    * - All other sizes request fields billed as [Places API Place Details
    * Enterprise +
    * Atmosphere](https://developers.google.com/maps/billing-and-pricing/sku-details#place-details-ent-plus-sku).
-   * For a place with opening hours, they also make a separate Places API
-   * Place Details Enterprise request for its current opening hours (two in
-   * `x-large`).
    * - `medium`, `large`, and `x-large` sizes also load photos, billed as
    * [Places API Place Details
    * Photos](https://developers.google.com/maps/billing-and-pricing/sku-details#place-details-photo-new-ent-sku).
