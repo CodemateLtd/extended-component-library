@@ -1,0 +1,32 @@
+<!--
+  Copyright 2026 Google LLC
+  SPDX-License-Identifier: Apache-2.0
+-->
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <script type="module" src="./extended_component_library.min.js"></script>
+    <script type="module" src="./index.js"></script>
+    <link href="./style.css" rel="stylesheet">
+    <title>GMPX - Localization Sample App</title>
+  </head>
+  <body>
+    <!-- Text returned by Google Maps Platform follows `language`. -->
+    <gmpx-api-loader key="YOUR_API_KEY" language="es" region="ES">
+    </gmpx-api-loader>
+    <!-- Favors places within 10 km of central Madrid. -->
+    <gmpx-place-picker location-bias="40.4168,-3.7038" radius="10000"
+        placeholder="Buscar un lugar en Madrid">
+    </gmpx-place-picker>
+    <p id="error-message" role="alert"></p>
+    <label>
+      <input id="strict-bounds" type="checkbox">
+      Sugerir solo lugares cerca del centro de Madrid
+    </label>
+    <!-- Museo Nacional del Prado, Madrid. -->
+    <gmpx-place-overview place="ChIJ7aLYZp0oQg0RWoitk33wlBA">
+    </gmpx-place-overview>
+  </body>
+</html>

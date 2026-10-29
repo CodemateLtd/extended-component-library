@@ -1,0 +1,14 @@
+{
+  "name": "gmpx-localization-sample-app",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Sample app demonstrating localization of the Extended Component Library.",
+  "scripts": {
+    "start": "wds --port $PORT"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@web/dev-server": "0.2.5"
+  }
+}
