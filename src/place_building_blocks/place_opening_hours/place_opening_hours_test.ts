@@ -75,6 +75,17 @@ describe('PlaceOpeningHours', () => {
     expect(el).toBeInstanceOf(PlaceOpeningHours);
   });
 
+  it('requests the fields needed by its nested isOpen() boolean', () => {
+    const el = document.createElement('gmpx-place-opening-hours');
+
+    expect(el.getRequiredFields()).toEqual([
+      'businessStatus',
+      'currentOpeningHours',
+      'regularOpeningHours',
+      'utcOffsetMinutes',
+    ]);
+  });
+
   it('renders nothing when place data is missing', async () => {
     const el = await prepareState({place: null});
 

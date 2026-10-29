@@ -71,13 +71,16 @@ function toPlaceBooleanField(field: BooleanField): PlaceBooleanField {
 }
 
 async function isOpenWithoutFetching(place: Place): Promise<boolean|undefined> {
-  // On a `Place`, `isOpen()` will asynchronously fetch these three fields. If
-  // we don't have all three already, then we treat `isOpen` as missing data
-  // instead of making an unintended API call.
+  // On a `Place`, `isOpen()` will asynchronously fetch `currentOpeningHours`,
+  // `businessStatus`, `regularOpeningHours` and `utcOffsetMinutes` if they are
+  // missing. If we don't have the last three already, then we treat `isOpen`
+  // as missing data instead of making an unintended API call. If we only lack
+  // `currentOpeningHours`, then we calculate from the regular opening hours.
   //
-  // When using the Place Data Provider component, these fields will be
+  // When using the Place Data Provider component, all four fields will be
   // automatically fetched in advance.
   if (place && hasDataForOpeningCalculations(place)) {
+    if (place.currentOpeningHours == null) return isOpen(place);
     try {
       return await place.isOpen();
     } catch {
@@ -202,6 +205,7 @@ export class PlaceFieldBoolean extends PlaceDataConsumer {
       case 'isOpen()':
         return [
           'businessStatus',
+          'currentOpeningHours',
           'regularOpeningHours',
           'utcOffsetMinutes',
         ];
