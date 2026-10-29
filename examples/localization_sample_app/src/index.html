@@ -16,6 +16,15 @@
     <!-- Text returned by Google Maps Platform follows `language`. -->
     <gmpx-api-loader key="YOUR_API_KEY" language="es" region="ES">
     </gmpx-api-loader>
+    <!-- Favors places within 10 km of central Madrid. -->
+    <gmpx-place-picker location-bias="40.4168,-3.7038" radius="10000"
+        placeholder="Buscar un lugar en Madrid">
+    </gmpx-place-picker>
+    <p id="error-message" role="alert"></p>
+    <label>
+      <input id="strict-bounds" type="checkbox">
+      Sugerir solo lugares cerca del centro de Madrid
+    </label>
     <!-- Museo Nacional del Prado, Madrid. -->
     <gmpx-place-overview place="ChIJ7aLYZp0oQg0RWoitk33wlBA">
     </gmpx-place-overview>

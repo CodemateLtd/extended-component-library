@@ -19,6 +19,7 @@ const PLACE_TYPES = new Map([
 // The library's own text. See src/base/strings.ts for every key; the
 // LOCATOR_* keys are left out because this page has no Store Locator.
 setStringLiterals({
+  'PLACE_CLEAR_ARIA_LABEL': 'Borrar',
   'PLACE_CLOSED': 'Cerrado',
   'PLACE_CLOSED_PERMANENTLY': 'Cerrado permanentemente',
   'PLACE_CLOSED_TEMPORARILY': 'Cerrado temporalmente',
@@ -49,8 +50,38 @@ setStringLiterals({
   'PLACE_REVIEWS_MORE': 'Más reseñas',
   'PLACE_REVIEWS_SECTION_CAPTION': 'Más relevantes',
   'PLACE_REVIEWS_SECTION_HEADING': 'Reseñas de usuarios de Google',
+  'PLACE_SEARCH_ARIA_LABEL': 'Buscar',
   // Other types are formatted as in the library, such as "City hall".
   'PLACE_TYPE': (placeType) => PLACE_TYPES.get(placeType) ??
       (placeType.charAt(0).toUpperCase() + placeType.slice(1))
           .replace(/_/g, ' '),
 });
+
+const picker = document.querySelector('gmpx-place-picker');
+const overview = document.querySelector('gmpx-place-overview');
+const strictBoundsCheckbox = document.getElementById('strict-bounds');
+const errorMessage = document.getElementById('error-message');
+
+picker.addEventListener('gmpx-placechange', () => {
+  errorMessage.textContent = '';
+  if (picker.value) {
+    overview.place = picker.value;
+  }
+});
+
+// Fired when a request for suggestions, a search or place details fails, for
+// example because the API key isn't valid.
+picker.addEventListener('gmpx-requesterror', (event) => {
+  console.error(event.error);
+  errorMessage.textContent =
+      'No se ha podido completar la búsqueda. Vuelve a intentarlo más tarde.';
+});
+
+// With strict bounds, only places inside the rectangle that encloses the
+// location-bias circle are suggested.
+function updateStrictBounds() {
+  picker.strictBounds = strictBoundsCheckbox.checked;
+}
+strictBoundsCheckbox.addEventListener('change', updateStrictBounds);
+// Browsers can restore the checkbox's state when the page reloads.
+updateStrictBounds();

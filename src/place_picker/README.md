@@ -124,6 +124,17 @@ picker.addEventListener('gmpx-placechange', () => {
 });
 ```
 
+### Bias or restrict predictions to an area
+
+Set `location-bias` and `radius` to favor places near a point, and `strict-bounds` to restrict predictions to the rectangle that encloses that circle:
+
+```html
+<gmpx-place-picker location-bias="40.4168,-3.7038" radius="10000" strict-bounds>
+</gmpx-place-picker>
+```
+
+The [localization example app](../../examples/localization_sample_app) shows these options with a `gmpx-requesterror` listener, in Spanish.
+
 
 
 ## APIs and Pricing
