@@ -13,9 +13,9 @@ Please be sure to check this documentation for additional requirements and recom
 
 #### Pricing
 
-Note that the SKUs below (except Places API Place Details Photos, and the separate request for the place's current opening hours) are not triggered if you provide a `Place` or `PlaceResult` object to this component that contains all the data fields necessary to render its overview content, or if this component has the `auto-fetch-disabled` attribute.
+Note that the SKUs below (except Places API Place Details Photos) are not triggered if you provide a `Place` or `PlaceResult` object to this component that contains all the data fields necessary to render its overview content, or if this component has the `auto-fetch-disabled` attribute.
 
-- [SKU: Places API Place Details Enterprise](https://developers.google.com/maps/billing-and-pricing/sku-details#place-details-ent-sku) (`x-small`; in every other size, for a place with opening hours, a separate request for its current opening hours: one in `small`, `medium`, and `large`, two in `x-large`)
+- [SKU: Places API Place Details Enterprise](https://developers.google.com/maps/billing-and-pricing/sku-details#place-details-ent-sku) (`x-small`)
 - [SKU: Places API Place Details Enterprise + Atmosphere](https://developers.google.com/maps/billing-and-pricing/sku-details#place-details-ent-plus-sku) (all sizes except `x-small`)
 - [SKU: Places API Place Details Photos](https://developers.google.com/maps/billing-and-pricing/sku-details#place-details-photo-new-ent-sku) (`medium`: two, the tile and the first photo at full size; `large` and `x-large`: one per tile plus the first photo at full size; in all three, one more for each further photo opened in the lightbox)
 
