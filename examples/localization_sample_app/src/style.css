@@ -1,0 +1,11 @@
+/**
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+body {
+  margin: 0 auto;
+  max-width: 600px;
+  padding: 1rem;
+}

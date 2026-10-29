@@ -22,6 +22,7 @@
     "example:react_sample_app": "wireit",
     "example:js_sample_app": "wireit",
     "example:angular_sample_app": "wireit",
+    "example:localization_sample_app": "wireit",
     "e2e": "wireit",
     "test": "wireit"
   },
@@ -226,6 +227,21 @@
       "service": {
         "readyWhen": {
           "lineMatches": "Local:\\s+http://localhost:\\d+/"
+        }
+      }
+    },
+    "example:localization_sample_app": {
+      "command": "./build/start_example.sh localization_sample_app",
+      "env": {
+        "PORT": "8007"
+      },
+      "dependencies": [
+        "build:bundle",
+        "example:prepare"
+      ],
+      "service": {
+        "readyWhen": {
+          "lineMatches": "Web Dev Server started"
         }
       }
     },

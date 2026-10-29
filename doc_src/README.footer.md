@@ -41,6 +41,8 @@ setStringLiterals({'PLACE_CLOSED': 'Cerrado'});
 
 Refer to `/src/base/strings.ts` for the full list of available terms.
 
+Text returned by Google Maps Platform, such as place names and addresses, follows the `language` attribute of `<gmpx-api-loader>` instead. The [localization example app](examples/localization_sample_app) uses both.
+
 ## Terms of Service
 
 This library uses Google Maps Platform services, and any use of Google Maps Platform is subject to the [Terms of Service](https://cloud.google.com/maps-platform/terms).
