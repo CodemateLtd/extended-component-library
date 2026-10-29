@@ -103,6 +103,8 @@ Web Components work well with most popular frontend frameworks such as Angular, 
 
 **Angular**: Angular works well with Web Components. See the Angular [example app](examples/angular_sample_app) to get started. 
 
+**Address Validation**: See the Address Validation [example app](examples/address_validation_sample_app) for `suggestValidationAction()` in plain JavaScript.
+
 ## Components available with Maps JS SDK
 
 Map and marker components can be used with the Extended Component Library, or on their own. See the [guide](https://developers.google.com/maps/documentation/web-components/overview) for more information on Web Components in the Maps JS SDK.

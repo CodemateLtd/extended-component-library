@@ -69,3 +69,5 @@ function getRequestFromAddressForm() {
   return {address: {regionCode, addressLines}};
 }
 ```
+
+For a runnable app that follows this example, with a sample response for each suggested action, see the [Address Validation sample app](../../examples/address_validation_sample_app).

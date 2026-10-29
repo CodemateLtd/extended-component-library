@@ -1,0 +1,14 @@
+{
+  "name": "gmpx-address-validation-sample-app",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Sample app demonstrating suggestValidationAction() from the Extended Component Library with Address Validation in the Maps JavaScript API.",
+  "scripts": {
+    "start": "wds --port $PORT"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@web/dev-server": "0.2.5"
+  }
+}
