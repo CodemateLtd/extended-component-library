@@ -1,0 +1,14 @@
+{
+  "name": "gmpx-store-locator-sample-app",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Sample app demonstrating the Store Locator component of the Extended Component Library.",
+  "scripts": {
+    "start": "wds --port $PORT"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@web/dev-server": "0.2.5"
+  }
+}
