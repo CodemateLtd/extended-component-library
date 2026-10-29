@@ -69,5 +69,7 @@ Photo Gallery loads the photos of its place through Places API (New), the same A
 
 #### Pricing
 
-- [SKU: Place Photo](https://developers.google.com/maps/billing-and-pricing/pricing?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#places-photo)
+The gallery asks its Place Data Provider for `displayName` and `photos`, so that request is billed at [Places API Place Details Pro](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#place-details-pro-sku) or higher (see the Place Data Provider's pricing).
+
+- [SKU: Places API Place Details Photos](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#place-details-photo-new-ent-sku) (one per tile; one for the first photo at full size, which loads with the tiles before the lightbox opens; and one for each further photo opened in the lightbox)
 

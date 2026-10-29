@@ -186,7 +186,7 @@ Used to display a map.
 
 #### Pricing
 
-* [SKU: Dynamic Maps](https://developers.google.com/maps/documentation/javascript/usage-and-billing?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#dynamic-maps)
+* [SKU: Dynamic Maps](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#dynamic-maps-ess-sku)
 
 ### Places API (New)
 
@@ -209,13 +209,12 @@ Please be sure to check this documentation for additional requirements and recom
 
 - [SKU: Autocomplete Session Usage](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#autocomplete-session-new-ess-sku)
 - [SKU: Autocomplete Requests](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#places_autocomplete-request-new-ess-sku) (sessions that end without a selection)
-- [SKU: Places API Place Details Enterprise + Atmosphere](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#place-details-ent-plus-sku) (the selected place, which ends the session)
+- [SKU: Places API Place Details Enterprise + Atmosphere](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#place-details-ent-plus-sku) (the selected place, which ends the session; and the "view details" panel, advanced feature set only)
 - [SKU: Find Place](https://developers.google.com/maps/billing-and-pricing/pricing?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#find-place) (fallback query)
-- [SKU: Place Details](https://developers.google.com/maps/billing-and-pricing/pricing?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#places-details)
-- [SKU: Basic Data](https://developers.google.com/maps/billing-and-pricing/pricing?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#basic-data)
-- [SKU: Contact Data](https://developers.google.com/maps/billing-and-pricing/pricing?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#contact-data)
-- [SKU: Atmosphere Data](https://developers.google.com/maps/billing-and-pricing/pricing?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#atmosphere-data) 
-- [SKU: Place Photo](https://developers.google.com/maps/billing-and-pricing/pricing?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#places-photo)
+- [SKU: Places API Text Search Essentials (IDs Only)](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#places_text-search-id-only-ess-sku) (when the user presses Enter without picking a suggestion; no charge)
+- [SKU: Places API Place Details Pro](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#place-details-pro-sku) (the place that search finds)
+- [SKU: Places API Place Details Enterprise](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#place-details-ent-sku) (the "view details" panel, advanced feature set only: for a place with opening hours, two separate requests for its current opening hours)
+- [SKU: Places API Place Details Photos](https://developers.google.com/maps/billing-and-pricing/sku-details?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components#place-details-photo-new-ent-sku) (the "view details" panel, advanced feature set only: one per tile, plus the first photo at full size, plus one for each further photo opened in the lightbox)
 
 ### Routes API
 

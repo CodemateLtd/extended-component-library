@@ -326,17 +326,17 @@ export class PlaceOverview extends BaseComponent {
   /**
    * Specifies a variation of this component, from smallest to largest. Larger
    * variations of this component display more data, which may affect cost:
-   * - `x-small` size uses [Basic
-   * Data](https://developers.google.com/maps/documentation/javascript/place-data-fields#basic)
-   * and
-   * [Atmosphere
-   * Data](https://developers.google.com/maps/documentation/javascript/place-data-fields#atmosphere).
-   * - All other sizes use [Basic
-   * Data](https://developers.google.com/maps/documentation/javascript/place-data-fields#basic),
-   * [Contact
-   * Data](https://developers.google.com/maps/documentation/javascript/place-data-fields#contact),
-   * and [Atmosphere
-   * Data](https://developers.google.com/maps/documentation/javascript/place-data-fields#atmosphere).
+   * - `x-small` size requests fields billed as [Places API Place Details
+   * Enterprise](https://developers.google.com/maps/billing-and-pricing/sku-details#place-details-ent-sku).
+   * - All other sizes request fields billed as [Places API Place Details
+   * Enterprise +
+   * Atmosphere](https://developers.google.com/maps/billing-and-pricing/sku-details#place-details-ent-plus-sku).
+   * For a place with opening hours, they also make a separate Places API
+   * Place Details Enterprise request for its current opening hours (two in
+   * `x-large`).
+   * - `medium`, `large`, and `x-large` sizes also load photos, billed as
+   * [Places API Place Details
+   * Photos](https://developers.google.com/maps/billing-and-pricing/sku-details#place-details-photo-new-ent-sku).
    */
   @property({reflect: true, type: String})
   size: 'x-small'|'small'|'medium'|'large'|'x-large' = 'x-large';
