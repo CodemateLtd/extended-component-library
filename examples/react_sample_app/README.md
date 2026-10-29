@@ -9,6 +9,12 @@ and the Extended Component Library in a framework-specific setting; notably,
 it leverages React wrappers provided by this library to simplify data passing
 and event handling.
 
+Before you start, you need an API key from a Google Cloud project with billing
+enabled. The project needs the Maps JavaScript API and Places API (New)
+enabled. If you restrict the key, add the website `http://localhost:8001` and
+select those two APIs. To create and restrict a key, see
+[Getting your API key](../../README.md#getting-your-api-key).
+
 To view the app from a local dev server, first clone this library from GitHub,
 then run the following command from the repository's root directory:
 
