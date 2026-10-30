@@ -10,7 +10,7 @@ import {jasmineTestRunnerConfig} from 'web-test-runner-jasmine';
 export default {
   ...jasmineTestRunnerConfig(),
   nodeResolve: true,
-  files: ['**/*test.js', '!node_modules/', '!.wireit/'],
+  files: ['**/*test.js', '!**/node_modules/**', '!.wireit/'],
   browsers: [
     playwrightLauncher({ product: 'chromium' }),
     playwrightLauncher({ product: 'firefox' }),
