@@ -19,16 +19,30 @@ const STATUS = {
 const LASTING_STATUSES =
     [STATUS.missingKey, STATUS.loadFailed, STATUS.keyRejected];
 const REQUEST_ERRORS = [STATUS.searchFailed, STATUS.detailsFailed];
-const loader = document.querySelector('gmpx-api-loader');
-const statusLine = document.getElementById('status');
-const map = document.querySelector('gmp-map');
-const picker = document.querySelector('gmpx-place-picker');
-const overview = document.querySelector('gmpx-place-overview');
-const marker = document.querySelector('gmp-advanced-marker');
-const overlay = document.querySelector('gmpx-overlay-layout');
-const dataProvider = document.querySelector('gmpx-place-data-provider');
-const openButton = document.getElementById('open-button');
-const closeButton = document.getElementById('close-button');
+
+/**
+ * Returns the element matching `selector`, or throws a setup error naming it
+ * if index.html doesn't have one.
+ */
+function requireElement(selector) {
+  const element = document.querySelector(selector);
+  if (!element) {
+    throw new Error(
+        `index.js needs an element matching "${selector}" in index.html.`);
+  }
+  return element;
+}
+
+const loader = requireElement('gmpx-api-loader');
+const statusLine = requireElement('#status');
+const map = requireElement('gmp-map');
+const picker = requireElement('gmpx-place-picker');
+const overview = requireElement('gmpx-place-overview');
+const marker = requireElement('gmp-advanced-marker');
+const overlay = requireElement('gmpx-overlay-layout');
+const dataProvider = requireElement('gmpx-place-data-provider');
+const openButton = requireElement('#open-button');
+const closeButton = requireElement('#close-button');
 
 /**
  * Shows a request error, unless the page already reports that Google Maps
