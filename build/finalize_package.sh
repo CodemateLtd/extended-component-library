@@ -15,12 +15,22 @@
 # limitations under the License.
 # ==============================================================================
 
+# Stop at the first failed command. The find calls end with `{} +`, not `\;`,
+# so that a failed cp or sed makes find itself fail.
+set -e
+
 # Copy README files from src to the lib directory and keep file structure.
 cd src
-find . -type f -name 'README.md' -exec cp --parents {} ../lib \;
+find . -type f -name 'README.md' -exec sh -c '
+  for f; do
+    mkdir -p "../lib/${f%/*}" && cp "${f}" "../lib/${f}" || exit 1
+  done' sh {} +
 cd ..
 
-find ./lib/base -type f -name 'constants.*' -exec sed -i 's/'GIT'/'NPM'/g' {} \;
-find ./lib -type f -name '*.md' -exec sed -i 's/utm_source=github/utm_source=npm/g' {} \;
-find ./lib -type f -name '*.js' -exec sed -i 's/utm_source=github/utm_source=npm/g' {} \;
-sed -i 's/utm_source=github/utm_source=npm/g' 'README.md'
+# `sed -i.bak` works with both GNU and BSD sed; the backups are removed below.
+find ./lib/base -type f -name 'constants.*' -exec sed -i.bak 's/GIT/NPM/g' {} +
+find ./lib -type f -name '*.md' -exec sed -i.bak 's/utm_source=github/utm_source=npm/g' {} +
+find ./lib -type f -name '*.js' -exec sed -i.bak 's/utm_source=github/utm_source=npm/g' {} +
+sed -i.bak 's/utm_source=github/utm_source=npm/g' 'README.md'
+find ./lib -type f -name '*.bak' -exec rm {} +
+rm README.md.bak
