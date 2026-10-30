@@ -337,6 +337,66 @@ describe('PlaceDistanceLabel', () => {
       expect(label.hasAttribute('no-data')).toBeTrue();
     });
 
+    it('sets no-data while a new request is pending', async () => {
+      const label = await renderLabel({lat: 1, lng: 0}, makePlace('P'));
+      pendingResponses.get('1/DRIVING/P')!.resolve(
+          makeResponse('1 km', '1 min'));
+      await settle();
+      expect(label.noData).toBeFalse();
+
+      label.origin = {lat: 2, lng: 0};
+      await env.waitForStability();
+      expect(label.noData).toBeTrue();
+
+      pendingResponses.get('2/DRIVING/P')!.resolve(
+          makeResponse('2 km', '2 mins'));
+      await settle();
+      expect(label.noData).toBeFalse();
+      expect(label.renderRoot.textContent).toBe('2 km');
+    });
+
+    it('keeps no-data until the newest request returns', async () => {
+      const label = await renderLabel({lat: 1, lng: 0}, makePlace('P'));
+      pendingResponses.get('1/DRIVING/P')!.resolve(
+          makeResponse('1 km', '1 min'));
+      await settle();
+      label.origin = {lat: 2, lng: 0};
+      await settle();
+      label.origin = {lat: 3, lng: 0};
+      await settle();
+
+      pendingResponses.get('2/DRIVING/P')!.resolve(
+          makeResponse('2 km', '2 mins'));
+      await settle();
+      // Re-render without a new request.
+      label.place = makePlace('P');
+      await settle();
+      expect(label.noData).toBeTrue();
+
+      pendingResponses.get('3/DRIVING/P')!.resolve(
+          makeResponse('3 km', '3 mins'));
+      await settle();
+      expect(label.noData).toBeFalse();
+    });
+
+    it('clears no-data when an older response arrives last', async () => {
+      const label = await renderLabel({lat: 1, lng: 0}, makePlace('P'));
+      label.origin = {lat: 2, lng: 0};
+      await settle();
+      pendingResponses.get('2/DRIVING/P')!.resolve(
+          makeResponse('2 km', '2 mins'));
+      await settle();
+
+      pendingResponses.get('1/DRIVING/P')!.resolve(
+          makeResponse('1 km', '1 min'));
+      await settle();
+      // Re-render without a new request.
+      label.place = makePlace('P');
+      await settle();
+
+      expect(label.noData).toBeFalse();
+    });
+
     it('ignores an older response that arrives after a newer one', async () => {
       const label = await renderLabel({lat: 1, lng: 0}, makePlace('P'));
       label.origin = {lat: 2, lng: 0};

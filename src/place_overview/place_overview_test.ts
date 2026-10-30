@@ -224,6 +224,27 @@ describe('PlaceOverview', () => {
 
       expect(container.hidden).toBeTrue();
     });
+
+    it('hides the travel time while a new one is pending', async () => {
+      const overview = await prepareState({size: 'small'});
+      overview.place = makeFakePlace({id: 'P'});
+      overview.travelOrigin = {lat: 1, lng: 0};
+      await settle();
+      pendingResponses.get(1)!.resolve(makeResponse('1 min'));
+      await settle();
+      const label = overview.renderRoot.querySelector(
+          'gmpx-place-distance-label-internal')!;
+      const container = label.parentElement!;
+      expect(container.hidden).toBeFalse();
+
+      overview.travelOrigin = {lat: 2, lng: 0};
+      await settle();
+      expect(container.hidden).toBeTrue();
+
+      pendingResponses.get(2)!.resolve(makeResponse('2 mins'));
+      await settle();
+      expect(container.hidden).toBeFalse();
+    });
   });
 
   it(`emits and logs error event when Place ID is invalid`, async () => {

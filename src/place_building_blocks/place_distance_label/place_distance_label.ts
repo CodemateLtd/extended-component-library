@@ -106,7 +106,10 @@ export class PlaceDistanceLabel extends PlaceDataConsumer {
   }
 
   protected override placeHasData(): boolean {
-    return this.routesData != null;
+    // Matches the condition in `render()`, so `noData` is true whenever the
+    // label renders nothing.
+    return !this.isFetchingRoutesData &&
+        !!this.routesData?.localizedValues?.distance;
   }
 
   private async updateRoutesData() {
