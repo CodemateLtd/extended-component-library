@@ -10,6 +10,7 @@ import {customElement, property} from 'lit/decorators.js';
 import {BaseComponent} from '../base/base_component.js';
 import {ATTRIBUTION_SOURCE_ID, LIBRARY_VERSION} from '../base/constants.js';
 import {LoggingController} from '../base/logging_controller.js';
+import {STRING_ARRAY_ATTRIBUTE_CONVERTER} from '../utils/attribute_converters.js';
 import {Deferred} from '../utils/deferred.js';
 
 import inlineScript from './inline_script.js';
@@ -33,6 +34,16 @@ function loadComponentsFromMapsJS(googleMaps: typeof google.maps) {
 function getLogger(host: HTMLElement): LoggingController|undefined {
   const logger = (host as {logger?: unknown}).logger;
   return logger instanceof LoggingController ? logger : undefined;
+}
+
+/**
+ * Returns whether two optional string arrays differ, comparing their items
+ * rather than the array references.
+ */
+function stringArraysDiffer(value?: string[], oldValue?: string[]): boolean {
+  if (value === oldValue) return false;
+  if (!value || !oldValue || value.length !== oldValue.length) return true;
+  return value.some((item, i) => item !== oldValue[i]);
 }
 
 declare global {
@@ -98,6 +109,25 @@ export class APILoader extends BaseComponent {
    * localization](https://developers.google.com/maps/documentation/javascript/localization).
    */
   @property({reflect: true, type: String}) language?: string;
+
+  /**
+   * IDs of maps whose configuration should be preloaded with the API.
+   * Preloading is optional and not required to use a map ID; it can improve
+   * network performance. Read more in the
+   * [documentation](https://developers.google.com/maps/documentation/javascript/load-maps-js-api#optional-parameters).
+   *
+   * Multiple map IDs can be specified in the attribute as a set of
+   * space-separated tokens.
+   */
+  @property({
+    attribute: 'map-ids',
+    converter: STRING_ARRAY_ATTRIBUTE_CONVERTER,
+    // Compare items, so that an equal array set after the API loads (as the
+    // React wrapper does on every render) is not reported as a change.
+    hasChanged: stringArraysDiffer,
+    reflect: true,
+  })
+  mapIds?: string[];
 
   /**
    * The region code to use. This alters the map's behavior based on a given
@@ -179,7 +209,7 @@ export class APILoader extends BaseComponent {
             'Duplicate configuration may cause unexpected behavior.');
       }
     } else if (this.key !== undefined) {
-      const {key, version, language, region, authReferrerPolicy} = this;
+      const {key, version, language, region, authReferrerPolicy, mapIds} = this;
       const solutionChannel = this.getSolutionChannel();
       const googleMaps = inlineScript.load({
         key,
@@ -188,6 +218,7 @@ export class APILoader extends BaseComponent {
         ...(region && {region}),
         ...(solutionChannel && {solutionChannel}),
         ...(authReferrerPolicy && {authReferrerPolicy}),
+        ...(mapIds?.length && {mapIds}),
       });
       APILoader.inlineScriptLoaded = true;
       APILoader.googleMapsDeferred.resolve(googleMaps);

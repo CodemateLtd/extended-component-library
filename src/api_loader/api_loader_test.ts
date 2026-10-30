@@ -108,6 +108,7 @@ describe('APILoader', () => {
               region="JP"
               auth-referrer-policy="origin"
               solution-channel="GMP_QB_locatorplus_v6"
+              map-ids="MAP_ID_1 MAP_ID_2"
             ></gmpx-api-loader>
           `
     });
@@ -121,6 +122,7 @@ describe('APILoader', () => {
       region: 'JP',
       solutionChannel: 'GMP_QB_locatorplus_v6',
       authReferrerPolicy: 'origin',
+      mapIds: ['MAP_ID_1', 'MAP_ID_2'],
     });
 
     waitForAnyPolling();
@@ -138,6 +140,7 @@ describe('APILoader', () => {
     loaderEl!.region = 'GB';
     loaderEl!.solutionChannel = 'GMP_QB_locatorplus_v6';
     loaderEl!.authReferrerPolicy = 'origin';
+    loaderEl!.mapIds = ['MAP_ID_1', 'MAP_ID_2'];
     await env.waitForStability();
 
     expect(consumerEl!.coreLibrary)
@@ -149,11 +152,59 @@ describe('APILoader', () => {
       region: 'GB',
       solutionChannel: 'GMP_QB_locatorplus_v6',
       authReferrerPolicy: 'origin',
+      mapIds: ['MAP_ID_1', 'MAP_ID_2'],
     });
 
     waitForAnyPolling();
 
     expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores an equal map ID list set after API load', async () => {
+    const {loaderEl, scriptLoadSpy, consoleWarnSpy} = await prepareState({
+      loaderHTML: html`
+            <gmpx-api-loader key="TEST_API_KEY" map-ids="MAP_ID_1 MAP_ID_2">
+            </gmpx-api-loader>
+          `
+    });
+
+    loaderEl!.mapIds = ['MAP_ID_1', 'MAP_ID_2'];
+    await env.waitForStability();
+
+    expect(scriptLoadSpy).toHaveBeenCalledTimes(1);
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('logs warning when map IDs change after API load', async () => {
+    const {loaderEl, consoleWarnSpy} = await prepareState({
+      loaderHTML: html`
+            <gmpx-api-loader key="TEST_API_KEY" map-ids="MAP_ID_1 MAP_ID_2">
+            </gmpx-api-loader>
+          `
+    });
+
+    loaderEl!.mapIds = ['MAP_ID_1', 'MAP_ID_3'];
+    await env.waitForStability();
+
+    expect(consoleWarnSpy)
+        .toHaveBeenCalledOnceWith(
+            `<gmpx-api-loader>: Property 'mapIds' cannot be updated once ` +
+            'the Google Maps JavaScript API is already loaded.');
+  });
+
+  it('omits map IDs when the list is empty', async () => {
+    const {scriptLoadSpy} = await prepareState({
+      loaderHTML: html`
+            <gmpx-api-loader key="TEST_API_KEY" map-ids=""></gmpx-api-loader>
+          `
+    });
+
+    expect(scriptLoadSpy).toHaveBeenCalledOnceWith({
+      key: 'TEST_API_KEY',
+      v: 'beta',
+      solutionChannel:
+          `GMP_${ATTRIBUTION_SOURCE_ID}_extended_v${LIBRARY_VERSION}`,
+    });
   });
 
   it('loads API when key is set using the `apiKey` alias', async () => {
@@ -332,4 +383,35 @@ describe('APILoader', () => {
        expect(scriptLoadSpy).not.toHaveBeenCalled();
        expect(consoleWarnSpy).not.toHaveBeenCalled();
      });
+
+  describe('script URL', () => {
+    /**
+     * Renders an API loader without mocking the inline bootstrap, and returns
+     * the URL of the script it appends to the document head.
+     */
+    async function getScriptUrl(loaderHTML: TemplateResult): Promise<URL> {
+      let script: HTMLScriptElement|undefined;
+      // The bootstrap appends a single <script> element. Not calling through
+      // keeps the test from requesting the real API.
+      spyOn(document.head, 'append').and.callFake((...nodes) => {
+        script = nodes[0] as HTMLScriptElement;
+      });
+      env.render(loaderHTML);
+      await env.waitForStability();
+      // The bootstrap appends its script after awaiting a few promises; allow
+      // it a bounded number of microtasks.
+      for (let i = 0; i < 10 && !script; i++) await Promise.resolve();
+      if (!script) throw new Error('The bootstrap did not append a script.');
+      return new URL(script.src);
+    }
+
+    it('sends map IDs as a comma-separated list', async () => {
+      const url = await getScriptUrl(html`
+        <gmpx-api-loader key="TEST_API_KEY" map-ids="MAP_ID_1 MAP_ID_2">
+        </gmpx-api-loader>
+      `);
+
+      expect(url.searchParams.get('map_ids')).toBe('MAP_ID_1,MAP_ID_2');
+    });
+  });
 });
