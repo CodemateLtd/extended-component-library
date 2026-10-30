@@ -14,16 +14,21 @@
   limitations under the License.
 -->
 
-<gmpx-api-loader [key]="mapsApiKey"></gmpx-api-loader>
+<gmpx-api-loader [key]="mapsApiKey" (gmpx-load)="clearLoadingStatus()"
+                 (gmpx-requesterror)="showLoadFailure()">
+</gmpx-api-loader>
 
 <gmpx-split-layout row-reverse row-layout-min-width="700">
   <gmpx-overlay-layout #overlay slot="fixed">
     <div slot="main" class="main-container">
+      <p class="status" role="status">{{ status() }}</p>
       <gmpx-place-picker for-map="gmap" type="university"
                          placeholder="Enter a college in the US or Canada"
-                         country="us ca" (gmpx-placechange)="selectCollege($event)">
+                         country="us ca" (gmpx-placechange)="selectCollege($event)"
+                         (gmpx-requesterror)="showSearchFailure()">
       </gmpx-place-picker>
-      <gmpx-place-overview size="large" [place]="college" google-logo-already-displayed>
+      <gmpx-place-overview size="large" [place]="college" google-logo-already-displayed
+                           (gmpx-requesterror)="showDetailsFailure()">
         <gmpx-icon-button slot="action" variant="filled" (click)="showReviews()">
           See Reviews
         </gmpx-icon-button>
@@ -37,7 +42,8 @@
                         class="close-button">
         Close
       </gmpx-icon-button>
-      <gmpx-place-data-provider [place]="college">
+      <gmpx-place-data-provider [place]="college"
+                                (gmpx-requesterror)="showDetailsFailure()">
         <gmpx-place-reviews></gmpx-place-reviews>
       </gmpx-place-data-provider>
     </div>
