@@ -315,10 +315,52 @@ describe('makePlaceFromPlaceResult', () => {
     expect(await place.isOpen()).toBe(true);
   });
 
-  it('calls the utility isOpen function when isOpen() isn\'t implemented on Place',
+  // The error that Place.prototype.isOpen() throws outside the beta channel.
+  const isOpenNotAvailableMessage =
+      'Place.prototype.isOpen() is not available in this version of the ' +
+      'Google Maps JavaScript API. Please switch to the beta channel to use ' +
+      'this feature.';
+
+  it('calls the utility isOpen function when Place.isOpen() throws',
      async () => {
-       const isOpenSpy = jasmine.createSpy('isOpen').and.rejectWith(new Error(
-           'Place.prototype.isOpen() is not available, try the beta channel.'));
+       const isOpenSpy = jasmine.createSpy('isOpen').and.rejectWith(
+           new Error(isOpenNotAvailableMessage));
+       const fakePlacesLibrary = {
+         Place: class {
+           constructor(options: google.maps.places.PlaceOptions) {
+             return makeFakePlace({id: options.id, isOpen: isOpenSpy});
+           }
+         },
+       };
+       env.importLibrarySpy?.and.resolveTo(fakePlacesLibrary);
+       const place = await makePlaceFromPlaceResult(SAMPLE_FAKE_PLACE_RESULT);
+
+       // Monday at noon in the place's UTC-8 time zone.
+       expect(await place.isOpen(new Date('2024-01-08T20:00:00Z'))).toBe(false);
+     });
+
+  it('calls the utility isOpen function for a reworded error message',
+     async () => {
+       const isOpenSpy = jasmine.createSpy('isOpen').and.rejectWith(
+           new Error('isOpen is unavailable on this release channel.'));
+       const fakePlacesLibrary = {
+         Place: class {
+           constructor(options: google.maps.places.PlaceOptions) {
+             return makeFakePlace({id: options.id, isOpen: isOpenSpy});
+           }
+         },
+       };
+       env.importLibrarySpy?.and.resolveTo(fakePlacesLibrary);
+       const place = await makePlaceFromPlaceResult(SAMPLE_FAKE_PLACE_RESULT);
+
+       // Sunday at noon in the place's UTC-8 time zone.
+       expect(await place.isOpen(new Date('2024-01-07T20:00:00Z'))).toBe(true);
+     });
+
+  it('rejects with the error from isOpen() when Place lacks opening data',
+     async () => {
+       const error = new Error('Failed to fetch opening hours.');
+       const isOpenSpy = jasmine.createSpy('isOpen').and.rejectWith(error);
        const fakePlacesLibrary = {
          Place: class {
            constructor(options: google.maps.places.PlaceOptions) {
@@ -329,6 +371,23 @@ describe('makePlaceFromPlaceResult', () => {
        env.importLibrarySpy?.and.resolveTo(fakePlacesLibrary);
        const place = await makePlaceFromPlaceResult({place_id: '123'});
 
-       expect(await place.isOpen()).toBe(undefined);
+       await expectAsync(place.isOpen()).toBeRejectedWith(error);
+     });
+
+  it('rejects when Place.isOpen() throws and Place lacks opening data',
+     async () => {
+       const error = new Error(isOpenNotAvailableMessage);
+       const isOpenSpy = jasmine.createSpy('isOpen').and.rejectWith(error);
+       const fakePlacesLibrary = {
+         Place: class {
+           constructor(options: google.maps.places.PlaceOptions) {
+             return makeFakePlace({id: options.id, isOpen: isOpenSpy});
+           }
+         },
+       };
+       env.importLibrarySpy?.and.resolveTo(fakePlacesLibrary);
+       const place = await makePlaceFromPlaceResult({place_id: '123'});
+
+       await expectAsync(place.isOpen()).toBeRejectedWith(error);
      });
 });

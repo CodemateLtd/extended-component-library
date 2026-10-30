@@ -136,7 +136,13 @@ export async function makePlaceFromPlaceResult(
               d
             ]);
           } catch (e: unknown) {
-            if (isNotAvailableError(e, 'isOpen()')) return isOpen(receiver, d);
+            // Outside the beta channel, the SDK's isOpen() throws. Fall back to
+            // the library's calculation when the place already holds the data
+            // it needs; otherwise the error may come from fetching that data,
+            // so propagate it.
+            if (hasDataForOpeningCalculations(receiver)) {
+              return isOpen(receiver, d);
+            }
             throw e;
           }
         };
