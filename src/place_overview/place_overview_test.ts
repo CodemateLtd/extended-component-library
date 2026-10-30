@@ -12,9 +12,11 @@ import {ifDefined} from 'lit/directives/if-defined.js';
 
 import {PlaceDataConsumer} from '../place_building_blocks/place_data_consumer.js';
 import {PlaceDataProvider} from '../place_building_blocks/place_data_provider/place_data_provider.js';
+import {RoutesController} from '../route_building_blocks/routes_controller.js';
 import {Environment} from '../testing/environment.js';
 import {makeFakePlace, SAMPLE_FAKE_PLACE} from '../testing/fake_place.js';
-import type {Place} from '../utils/googlemaps_types.js';
+import {Deferred} from '../utils/deferred.js';
+import type {ComputeRoutesRequest, ComputeRoutesResponse, LatLngLiteral, Place} from '../utils/googlemaps_types.js';
 
 import {PlaceOverview} from './place_overview.js';
 
@@ -150,6 +152,60 @@ describe('PlaceOverview', () => {
     expect(dispatchEventSpy)
         .toHaveBeenCalledOnceWith(
             jasmine.objectContaining({type: 'gmpx-requesterror', error}));
+  });
+
+  describe('with a travel origin that changes during a request', () => {
+    let pendingResponses: Map<number, Deferred<ComputeRoutesResponse>>;
+
+    beforeEach(() => {
+      RoutesController.reset();
+      pendingResponses = new Map();
+      env.fakeGoogleMapsHarness!.computeRoutesHandler =
+          (request: ComputeRoutesRequest) => {
+            const deferred = new Deferred<ComputeRoutesResponse>();
+            pendingResponses.set(
+                (request.origin as LatLngLiteral).lat, deferred);
+            return deferred.promise;
+          };
+    });
+
+    afterEach(() => {
+      RoutesController.reset();
+    });
+
+    function makeResponse(duration: string) {
+      return {
+        routes: [{legs: [{localizedValues: {distance: '1 km', duration}}]}],
+      } as unknown as ComputeRoutesResponse;
+    }
+
+    async function settle() {
+      // A response passes through several awaits before it is rendered, so
+      // wait for more than one round of updates.
+      for (let i = 0; i < 5; i++) {
+        await env.waitForStability();
+        await Promise.resolve();
+      }
+    }
+
+    it('shows the travel time from the newer origin', async () => {
+      const overview = await prepareState({size: 'small'});
+      overview.place = makeFakePlace({id: 'P'});
+      overview.travelOrigin = {lat: 1, lng: 0};
+      await settle();
+      overview.travelOrigin = {lat: 2, lng: 0};
+      await settle();
+      pendingResponses.get(1)!.resolve(makeResponse('1 min'));
+      await settle();
+
+      pendingResponses.get(2)!.resolve(makeResponse('2 mins'));
+      await settle();
+
+      const label = overview.renderRoot.querySelector(
+          'gmpx-place-distance-label-internal')!;
+      expect(label.shadowRoot!.textContent)
+          .toHaveNormalizedText('directions_car 2 mins');
+    });
   });
 
   it(`emits and logs error event when Place ID is invalid`, async () => {
