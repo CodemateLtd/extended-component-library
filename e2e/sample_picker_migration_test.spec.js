@@ -6,17 +6,13 @@
 
 import {expect, test} from '@playwright/test';
 
-const SAMPLES = [
-  {title: 'React Sample App', port: 8001},
-  {title: 'JS Sample App', port: 8002},
-  {title: 'Angular Sample App', port: 8003},
-];
+import {openSampleApp, SAMPLE_APP_CONFIGS} from './sample_apps.js';
 
-for (const {title, port} of SAMPLES) {
-  test(`${title} preserves picker settings and clears its selection`,
+for (const app of SAMPLE_APP_CONFIGS) {
+  test(
+      `${app.title} preserves picker settings and clears its selection`,
       async ({page}) => {
-        await page.goto(`http://localhost:${port}`);
-        await expect(page).toHaveTitle(`GMPX - ${title}`);
+        await openSampleApp(page, app);
 
         const picker = page.locator('gmpx-place-picker');
         await expect(picker).toHaveAttribute('for-map', 'gmap');
@@ -57,7 +53,7 @@ for (const {title, port} of SAMPLES) {
         await expect(overview).toHaveJSProperty('place', undefined);
         await expect(dataProvider).toHaveJSProperty('place', undefined);
         await expect(map).toHaveAttribute('zoom', '4');
-        if (title === 'React Sample App') {
+        if (app.removesMarkerOnClear) {
           await expect(marker).toHaveCount(0);
         } else {
           await expect(marker).toHaveJSProperty('position', null);

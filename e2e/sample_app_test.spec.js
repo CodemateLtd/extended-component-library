@@ -8,6 +8,8 @@ import {expect, test} from '@playwright/test';
 import {existsSync} from 'node:fs';
 import {readFile} from 'node:fs/promises';
 
+import {openSampleApp, SAMPLE_APP_CONFIGS, searchCollege} from './sample_apps.js';
+
 test('JS sample serves the built bundle without rewriting source',
     async ({request}) => {
       const page = await request.get('http://localhost:8002/');
@@ -30,43 +32,17 @@ test('JS sample serves the built bundle without rewriting source',
           import.meta.url))).toBe(false);
     });
 
-/**
- * List of sample apps that will be tested. Each of these should
- * be started before executing the Playwright tests.
- */
-const SAMPLE_APP_CONFIGS = [
-  {
-    title: 'React Sample App',
-    port: 8001,
-  },
-  {
-    title: 'JS Sample App',
-    port: 8002,
-  },
-  {
-    title: 'Angular Sample App',
-    port: 8003,
-  }
-];
-
-for (const {title, port} of SAMPLE_APP_CONFIGS) {
+for (const app of SAMPLE_APP_CONFIGS) {
   test(
-      `${title} locates a college on the map and displays its info`,
+      `${app.title} locates a college on the map and displays its info`,
       async ({page}) => {
-        await page.goto(`http://localhost:${port}`);
-        await expect(page).toHaveTitle(`GMPX - ${title}`);
+        await openSampleApp(page, app);
 
         const map = page.locator('gmp-map');
         const marker = page.locator('gmp-advanced-marker');
-        await page.evaluate(() => customElements.whenDefined('gmp-map'));
         await expect(map).toHaveAttribute('zoom', '4');
 
-        // The input is inside the autocomplete widget's closed shadow root.
-        const picker = page.locator('gmpx-place-picker gmp-place-autocomplete');
-        await picker.click();
-        await page.keyboard.type('mit');
-        await page.keyboard.press('Tab');
-        await page.keyboard.press('Enter');
+        await searchCollege(page, 'mit');
 
         const overview = page.locator('gmpx-place-overview');
         await expect(overview).toContainText(
