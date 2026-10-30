@@ -9,7 +9,7 @@ import {customElement, property, state} from 'lit/decorators.js';
 
 import {WebFont, WebFontController} from '../../base/web_font_controller.js';
 import {RoutesController} from '../../route_building_blocks/routes_controller.js';
-import type {LatLng, LatLngLiteral, Place, RouteLeg} from '../../utils/googlemaps_types.js';
+import type {ComputeRoutesRequest, LatLng, LatLngLiteral, Place, RouteLeg} from '../../utils/googlemaps_types.js';
 import {PlaceDataConsumer} from '../place_data_consumer.js';
 
 
@@ -62,6 +62,7 @@ export class PlaceDistanceLabel extends PlaceDataConsumer {
 
   private readonly routesController = new RoutesController(this);
   private isFetchingRoutesData = false;
+  private routesUpdateId = 0;
 
   protected override willUpdate(changedProperties: PropertyValues) {
     super.willUpdate(changedProperties);
@@ -107,17 +108,23 @@ export class PlaceDistanceLabel extends PlaceDataConsumer {
   }
 
   private async updateRoutesData() {
-    if (this.isFetchingRoutesData) return;
+    // Every call makes the requests of earlier calls outdated, including a
+    // call with no request of its own.
+    const updateId = ++this.routesUpdateId;
+    const isCurrent = () => updateId === this.routesUpdateId;
     const origin = this.origin;
     const destination = this.getPlace();
     if (origin && destination) {
       this.isFetchingRoutesData = true;
-      const result = await this.routesController.computeRoutes({
+      const request: ComputeRoutesRequest = {
         origin,
         destination,
         travelMode: (this.travelMode?.toUpperCase() ?? 'DRIVING') as TravelMode,
         fields: ['legs']
-      });
+      };
+      const result =
+          await this.routesController.computeRoutes(request, isCurrent);
+      if (!isCurrent()) return;
       this.routesData = result?.routes?.[0]?.legs?.[0];
       // When switching the travel mode between driving and undefined,
       // this.routesData is unchanged but we still want an update.
