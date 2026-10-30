@@ -13,7 +13,8 @@ import {customElement, property} from 'lit/decorators.js';
 
 import {LoggingController} from '../../base/logging_controller.js';
 import {Environment} from '../../testing/environment.js';
-import type {ComputeRoutesResponse, Route} from '../../utils/googlemaps_types.js';
+import {Deferred} from '../../utils/deferred.js';
+import type {ComputeRoutesRequest, ComputeRoutesResponse, Route} from '../../utils/googlemaps_types.js';
 import {routeContext} from '../route_data_consumer.js';
 import {RoutesController} from '../routes_controller.js';
 
@@ -264,5 +265,140 @@ describe('RouteDataProvider', () => {
     await env.waitForStability();
 
     expect(consumer.contextRoute).toBe(route);
+  });
+
+  describe('with requests that finish out of order', () => {
+    let pendingResponses: Map<string, Deferred<ComputeRoutesResponse>>;
+
+    beforeEach(() => {
+      RoutesController.reset();
+      pendingResponses = new Map();
+      env.fakeGoogleMapsHarness!.computeRoutesHandler =
+          (request: ComputeRoutesRequest) => {
+            const deferred = new Deferred<ComputeRoutesResponse>();
+            pendingResponses.set(request.origin as string, deferred);
+            return deferred.promise;
+          };
+    });
+
+    afterEach(() => {
+      RoutesController.reset();
+    });
+
+    function makeError() {
+      return Object.assign(new Error('Invalid route'), {
+        code: 'INVALID_ARGUMENT',
+        endpoint: 'ROUTES_COMPUTE_ROUTES',
+        name: 'MapsRequestError',
+      });
+    }
+
+    function makeResponse(route: Route) {
+      return {routes: [route]} as ComputeRoutesResponse;
+    }
+
+    async function settle() {
+      // A response passes through several awaits before it reaches
+      // contextRoute, so wait for more than one round of updates.
+      for (let i = 0; i < 5; i++) {
+        await env.waitForStability();
+        await Promise.resolve();
+      }
+    }
+
+    async function renderProvider(originAddress: string) {
+      const root = env.render(html`
+        <gmpx-route-data-provider origin-address=${originAddress}
+            destination-address="Z">
+        </gmpx-route-data-provider>`);
+      await settle();
+      const provider =
+          root.querySelector<RouteDataProvider>('gmpx-route-data-provider')!;
+      const errorListener = jasmine.createSpy('requestError');
+      provider.addEventListener('gmpx-requesterror', errorListener);
+      return {provider, errorListener};
+    }
+
+    it('ignores an older error after a newer route arrives', async () => {
+      const {provider, errorListener} = await renderProvider('A');
+      provider.originAddress = 'B';
+      await settle();
+      const newRoute = {} as Route;
+      pendingResponses.get('B')!.resolve(makeResponse(newRoute));
+      await settle();
+
+      pendingResponses.get('A')!.reject(makeError());
+      await settle();
+
+      expect(errorListener).not.toHaveBeenCalled();
+      expect(provider.contextRoute).toBe(newRoute);
+    });
+
+    it('ignores an older route after a newer route arrives', async () => {
+      const {provider} = await renderProvider('A');
+      provider.originAddress = 'B';
+      await settle();
+      const newRoute = {} as Route;
+      pendingResponses.get('B')!.resolve(makeResponse(newRoute));
+      await settle();
+
+      pendingResponses.get('A')!.resolve(makeResponse({} as Route));
+      await settle();
+
+      expect(provider.contextRoute).toBe(newRoute);
+    });
+
+    it('ignores an older route after a newer request fails', async () => {
+      const {provider, errorListener} = await renderProvider('A');
+      provider.originAddress = 'B';
+      await settle();
+      pendingResponses.get('B')!.reject(makeError());
+      await settle();
+
+      pendingResponses.get('A')!.resolve(makeResponse({} as Route));
+      await settle();
+
+      expect(errorListener).toHaveBeenCalledTimes(1);
+      expect(provider.contextRoute).toBeUndefined();
+    });
+
+    it('keeps the route property over a pending request', async () => {
+      const {provider} = await renderProvider('A');
+      const route = {} as Route;
+      provider.route = route;
+      await settle();
+
+      pendingResponses.get('A')!.resolve(makeResponse({} as Route));
+      await settle();
+
+      expect(provider.contextRoute).toBe(route);
+    });
+
+    it('ignores a pending request after the origin is cleared', async () => {
+      const {provider} = await renderProvider('A');
+      provider.originAddress = undefined;
+      await settle();
+
+      pendingResponses.get('A')!.resolve(makeResponse({} as Route));
+      await settle();
+
+      expect(provider.contextRoute).toBeUndefined();
+    });
+
+    it('reports one error when an update repeats a pending request',
+       async () => {
+         const {provider, errorListener} = await renderProvider('A');
+         const handlerSpy =
+             spyOn(env.fakeGoogleMapsHarness!, 'computeRoutesHandler')
+                 .and.callThrough();
+         provider.requestUpdate();
+         await settle();
+         expect(handlerSpy).not.toHaveBeenCalled();
+
+         pendingResponses.get('A')!.reject(makeError());
+         await settle();
+
+         expect(errorListener).toHaveBeenCalledTimes(1);
+       });
   });
 });
