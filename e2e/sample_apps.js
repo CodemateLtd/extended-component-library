@@ -31,6 +31,12 @@ export const SAMPLE_APP_CONFIGS = [
   }
 ];
 
+/** Map center every sample app shows while no college is selected. */
+export const DEFAULT_CENTER = {
+  lat: 45,
+  lng: -98
+};
+
 /** Opens a sample app and waits for its map element to be defined. */
 export async function openSampleApp(page, {title, port}) {
   await page.goto(`http://localhost:${port}`);
@@ -54,3 +60,30 @@ export async function searchCollege(page, query) {
   await page.keyboard.press('Enter');
 }
 
+/**
+ * Reads an element's coordinate property, such as a map's `center` or a
+ * marker's `position`, as `{lat, lng}`, or as `null` or `undefined` if unset.
+ *
+ * Reads the property rather than the attribute, so it works whether the app
+ * set an attribute (React) or a property (JS and Angular).
+ */
+function readLatLng(locator, property) {
+  return locator.evaluate((element, property) => {
+    const value = element[property];
+    if (value == null) return value;
+    const {lat, lng} =
+        typeof value.toJSON === 'function' ? value.toJSON() : value;
+    return {lat, lng};
+  }, property);
+}
+
+/**
+ * Waits until an element's coordinate property matches `expected` to five
+ * decimal places.
+ */
+export async function expectLatLng(locator, property, expected) {
+  await expect.poll(() => readLatLng(locator, property)).toEqual({
+    lat: expect.closeTo(expected.lat, 5),
+    lng: expect.closeTo(expected.lng, 5),
+  });
+}

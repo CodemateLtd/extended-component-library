@@ -6,7 +6,12 @@
 
 import {expect, test} from '@playwright/test';
 
-import {openSampleApp, SAMPLE_APP_CONFIGS} from './sample_apps.js';
+import {DEFAULT_CENTER, expectLatLng, openSampleApp, SAMPLE_APP_CONFIGS} from './sample_apps.js';
+
+const COLLEGE_LOCATION = {
+  lat: 42.3601,
+  lng: -71.0942
+};
 
 for (const app of SAMPLE_APP_CONFIGS) {
   test(
@@ -34,25 +39,28 @@ for (const app of SAMPLE_APP_CONFIGS) {
             'div[slot="overlay"] > gmpx-place-data-provider');
         // Inject a selected Place without making a billable Places request.
         // This still exercises the real picker event and each app's bindings.
-        await picker.evaluate(async (element) => {
+        await picker.evaluate(async (element, location) => {
           element.valueInternal = {
             displayName: 'Test College',
-            location: new google.maps.LatLng(42.3601, -71.0942),
+            location: new google.maps.LatLng(location),
           };
           element.hideClearButton = false;
           await element.updateComplete;
-        });
+        }, COLLEGE_LOCATION);
         await expect.poll(() => overview.evaluate(
             (element) => element.place?.displayName)).toBe('Test College');
         await expect.poll(() => dataProvider.evaluate(
             (element) => element.place?.displayName)).toBe('Test College');
         await expect(map).toHaveAttribute('zoom', '16');
+        await expectLatLng(map, 'center', COLLEGE_LOCATION);
         await expect(marker).toHaveCount(1);
+        await expectLatLng(marker, 'position', COLLEGE_LOCATION);
 
         await picker.locator('button.clear-button').click();
         await expect(overview).toHaveJSProperty('place', undefined);
         await expect(dataProvider).toHaveJSProperty('place', undefined);
         await expect(map).toHaveAttribute('zoom', '4');
+        await expectLatLng(map, 'center', DEFAULT_CENTER);
         if (app.removesMarkerOnClear) {
           await expect(marker).toHaveCount(0);
         } else {
