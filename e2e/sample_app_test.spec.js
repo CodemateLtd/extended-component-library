@@ -8,7 +8,7 @@ import {expect, test} from '@playwright/test';
 import {existsSync} from 'node:fs';
 import {readFile} from 'node:fs/promises';
 
-import {openSampleApp, SAMPLE_APP_CONFIGS, searchCollege} from './sample_apps.js';
+import {expectLatLng, openSampleApp, SAMPLE_APP_CONFIGS, searchCollege} from './sample_apps.js';
 
 test('JS sample serves the built bundle without rewriting source',
     async ({request}) => {
@@ -49,6 +49,20 @@ for (const app of SAMPLE_APP_CONFIGS) {
             'Massachusetts Institute of Technology');
         await expect(map).toHaveAttribute('zoom', '16');
         await expect(marker).toHaveCount(1);
+
+        // Every consumer gets the Place that the overview shows. The overview
+        // text check above waits for the search, so the Place is read once.
+        const place = await overview.evaluate((element) => {
+          const {id, location} = element.place;
+          return {id, location: location.toJSON()};
+        });
+        await expectLatLng(map, 'center', place.location);
+        await expectLatLng(marker, 'position', place.location);
+        const dataProvider =
+            page.locator('div[slot="overlay"] > gmpx-place-data-provider');
+        await expect
+            .poll(() => dataProvider.evaluate((element) => element.place?.id))
+            .toBe(place.id);
 
         const reviews = page.locator('gmpx-place-reviews');
         await page.getByText('See Reviews').click();
