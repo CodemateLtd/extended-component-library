@@ -324,6 +324,19 @@ describe('PlaceDistanceLabel', () => {
       expect(label.noData).toBeTrue();
     });
 
+    it('sets no-data in the update that clears the origin', async () => {
+      const label = await renderLabel({lat: 1, lng: 0}, makePlace('P'));
+      pendingResponses.get('1/DRIVING/P')!.resolve(
+          makeResponse('1 km', '1 min'));
+      await settle();
+
+      label.origin = undefined;
+      await env.waitForStability();
+
+      expect(label.noData).toBeTrue();
+      expect(label.hasAttribute('no-data')).toBeTrue();
+    });
+
     it('ignores an older response that arrives after a newer one', async () => {
       const label = await renderLabel({lat: 1, lng: 0}, makePlace('P'));
       label.origin = {lat: 2, lng: 0};

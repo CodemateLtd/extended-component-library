@@ -65,13 +65,15 @@ export class PlaceDistanceLabel extends PlaceDataConsumer {
   private routesUpdateId = 0;
 
   protected override willUpdate(changedProperties: PropertyValues) {
-    super.willUpdate(changedProperties);
-
-    // Re-fetch routes data if either origin or travel mode changes.
+    // Re-fetch routes data if either origin or travel mode changes. This runs
+    // before the base class computes `noData` from `routesData`, which
+    // `updateRoutesData()` clears synchronously when an input is missing.
     if (changedProperties.has('origin') ||
         changedProperties.has('travelMode')) {
       this.updateRoutesData();
     }
+
+    super.willUpdate(changedProperties);
   }
 
   protected override placeChangedCallback(

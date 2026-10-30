@@ -206,6 +206,24 @@ describe('PlaceOverview', () => {
       expect(label.shadowRoot!.textContent)
           .toHaveNormalizedText('directions_car 2 mins');
     });
+
+    it('hides the travel time when the origin is cleared', async () => {
+      const overview = await prepareState({size: 'small'});
+      overview.place = makeFakePlace({id: 'P'});
+      overview.travelOrigin = {lat: 1, lng: 0};
+      await settle();
+      pendingResponses.get(1)!.resolve(makeResponse('1 min'));
+      await settle();
+      const label = overview.renderRoot.querySelector(
+          'gmpx-place-distance-label-internal')!;
+      const container = label.parentElement!;
+      expect(container.hidden).toBeFalse();
+
+      overview.travelOrigin = undefined;
+      await settle();
+
+      expect(container.hidden).toBeTrue();
+    });
   });
 
   it(`emits and logs error event when Place ID is invalid`, async () => {
