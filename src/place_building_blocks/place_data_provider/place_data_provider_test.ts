@@ -617,4 +617,213 @@ describe('PlaceDataProvider', () => {
       expect(provider.renderRoot.querySelector('slot')?.name).toBe('error');
     });
   });
+
+  describe('outdated updates', () => {
+    let fetches: Map<string, Deferred<{place: Place}>>;
+
+    function makePlaceWithDeferredFetch(id: string): Place {
+      return makeFakePlace({
+        id,
+        fetchFields: () => {
+          const deferred = new Deferred<{place: Place}>();
+          fetches.set(id, deferred);
+          return deferred.promise;
+        },
+      });
+    }
+
+    async function prepareDeferredState(place: string|Place|PlaceResult) {
+      fetches = new Map();
+      env.fakeGoogleMapsHarness!.placeConstructor = (options) =>
+          makePlaceWithDeferredFetch(options.id!);
+      const requestErrorListener = jasmine.createSpy('requestErrorListener');
+      const root = env.render(html`
+        <gmpx-place-data-provider
+          .place=${place}
+          @gmpx-requesterror=${(e: Event) => requestErrorListener(e)}
+        >
+          <gmpx-test-consumer></gmpx-test-consumer>
+        </gmpx-place-data-provider>
+      `);
+      await env.waitForStability();
+      const provider =
+          root.querySelector<PlaceDataProvider>('gmpx-place-data-provider')!;
+      const consumer =
+          provider.querySelector<TestConsumer>('gmpx-test-consumer')!;
+      return {provider, consumer, requestErrorListener};
+    }
+
+    function getSlotName(provider: PlaceDataProvider) {
+      return provider.renderRoot.querySelector('slot')?.name;
+    }
+
+    it('ignores an outdated fetch error, with Place ID', async () => {
+      const {provider, consumer, requestErrorListener} =
+          await prepareDeferredState('id22-A');
+      provider.place = 'id22-B';
+      await env.waitForStability();
+      fetches.get('id22-B')!.resolve({place: makeFakePlace({id: 'id22-B'})});
+      await env.waitForStability();
+
+      fetches.get('id22-A')!.reject(new Error('some network error'));
+      await env.waitForStability();
+
+      expect(getSlotName(provider)).toBe('');
+      expect(requestErrorListener).not.toHaveBeenCalled();
+      expect(consumer.contextPlace?.id).toBe('id22-B');
+    });
+
+    it('keeps loading when an outdated fetch succeeds first', async () => {
+      const {provider, consumer} = await prepareDeferredState('id23-A');
+      provider.place = 'id23-B';
+      await env.waitForStability();
+
+      fetches.get('id23-A')!.resolve({place: makeFakePlace({id: 'id23-A'})});
+      await env.waitForStability();
+
+      expect(getSlotName(provider)).toBe('initial-loading');
+      expect(consumer.contextPlace?.id).toBe('id23-B');
+    });
+
+    it('ignores an outdated fetch error, with Place', async () => {
+      const {provider, consumer, requestErrorListener} =
+          await prepareDeferredState(makePlaceWithDeferredFetch('id24-A'));
+      provider.place = makePlaceWithDeferredFetch('id24-B');
+      await env.waitForStability();
+      fetches.get('id24-B')!.resolve({place: makeFakePlace({id: 'id24-B'})});
+      await env.waitForStability();
+
+      fetches.get('id24-A')!.reject(new Error('some network error'));
+      await env.waitForStability();
+
+      expect(getSlotName(provider)).toBe('');
+      expect(requestErrorListener).not.toHaveBeenCalled();
+      expect(consumer.contextPlace?.id).toBe('id24-B');
+    });
+
+    it('ignores an outdated fetch error, with PlaceResult', async () => {
+      const {provider, consumer, requestErrorListener} =
+          await prepareDeferredState({place_id: 'id25-A'});
+      provider.place = {place_id: 'id25-B'};
+      await env.waitForStability();
+      fetches.get('id25-B')!.resolve({place: makeFakePlace({id: 'id25-B'})});
+      await env.waitForStability();
+
+      fetches.get('id25-A')!.reject(new Error('some network error'));
+      await env.waitForStability();
+
+      expect(getSlotName(provider)).toBe('');
+      expect(requestErrorListener).not.toHaveBeenCalled();
+      expect(consumer.contextPlace?.id).toBe('id25-B');
+    });
+
+    it('renders nothing when a fetch succeeds after place is cleared',
+       async () => {
+         const {provider, consumer} = await prepareDeferredState('id26');
+         provider.place = undefined;
+         await env.waitForStability();
+
+         fetches.get('id26')!.resolve({place: makeFakePlace({id: 'id26'})});
+         await env.waitForStability();
+
+         expect(provider.renderRoot.querySelector('slot')).toBeNull();
+         expect(consumer.contextPlace).toBeUndefined();
+       });
+
+    it('renders nothing when a fetch fails after place is cleared',
+       async () => {
+         const {provider, requestErrorListener} =
+             await prepareDeferredState('id27');
+         provider.place = undefined;
+         await env.waitForStability();
+
+         fetches.get('id27')!.reject(new Error('some network error'));
+         await env.waitForStability();
+
+         expect(provider.renderRoot.querySelector('slot')).toBeNull();
+         expect(requestErrorListener).not.toHaveBeenCalled();
+       });
+
+    it('keeps a newer Place when an outdated PlaceResult is converted',
+       async () => {
+         const deferred = new Deferred<unknown>();
+         env.importLibrarySpy?.and.returnValue(deferred.promise);
+         const {provider, consumer} =
+             await prepareDeferredState({place_id: 'id28-A'});
+         provider.place = makePlaceWithDeferredFetch('id28-B');
+         await env.waitForStability();
+         fetches.get('id28-B')!.resolve({place: makeFakePlace({id: 'id28-B'})});
+         await env.waitForStability();
+
+         deferred.resolve(
+             await env.fakeGoogleMapsHarness!.importLibrary('places'));
+         await env.waitForStability();
+
+         expect(consumer.contextPlace?.id).toBe('id28-B');
+         expect(getSlotName(provider)).toBe('');
+       });
+
+    it('keeps a newer Place when an outdated Place ID is looked up',
+       async () => {
+         const deferred = new Deferred<unknown>();
+         env.importLibrarySpy?.and.returnValue(deferred.promise);
+         const {provider, consumer} = await prepareDeferredState('id29-A');
+         provider.place = makePlaceWithDeferredFetch('id29-B');
+         await env.waitForStability();
+         fetches.get('id29-B')!.resolve({place: makeFakePlace({id: 'id29-B'})});
+         await env.waitForStability();
+
+         deferred.resolve(
+             await env.fakeGoogleMapsHarness!.importLibrary('places'));
+         await env.waitForStability();
+
+         expect(consumer.contextPlace?.id).toBe('id29-B');
+         expect(getSlotName(provider)).toBe('');
+       });
+
+    it('rejects an outdated refresh without setting the error state',
+       async () => {
+         const {provider, consumer, requestErrorListener} =
+             await prepareDeferredState('id30-A');
+         fetches.get('id30-A')!.resolve({place: makeFakePlace({id: 'id30-A'})});
+         await env.waitForStability();
+         const refreshPromise = provider.refresh();
+         await env.waitForStability();
+         provider.place = 'id30-B';
+         await env.waitForStability();
+         fetches.get('id30-B')!.resolve({place: makeFakePlace({id: 'id30-B'})});
+         await env.waitForStability();
+
+         fetches.get('id30-A')!.reject(new Error('some network error'));
+
+         await expectAsync(refreshPromise)
+             .toBeRejectedWithError('some network error');
+         await env.waitForStability();
+         expect(getSlotName(provider)).toBe('');
+         expect(requestErrorListener).not.toHaveBeenCalled();
+         expect(consumer.contextPlace?.id).toBe('id30-B');
+       });
+
+    it('loads a place set during a refresh, ignoring the refresh', async () => {
+      const {provider, consumer} = await prepareDeferredState('id31-A');
+      fetches.get('id31-A')!.resolve({place: makeFakePlace({id: 'id31-A'})});
+      await env.waitForStability();
+      const refreshPromise = provider.refresh();
+      await env.waitForStability();
+      provider.place = 'id31-B';
+      await env.waitForStability();
+
+      fetches.get('id31-A')!.resolve({place: makeFakePlace({id: 'id31-A'})});
+      await refreshPromise;
+      await env.waitForStability();
+
+      expect(getSlotName(provider)).toBe('initial-loading');
+
+      fetches.get('id31-B')!.resolve({place: makeFakePlace({id: 'id31-B'})});
+      await env.waitForStability();
+
+      expect(getSlotName(provider)).toBe('');
+      expect(consumer.contextPlace?.id).toBe('id31-B');
+    });
+  });
 });

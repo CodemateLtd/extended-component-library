@@ -124,17 +124,24 @@ export class PlaceDataProvider extends BaseComponent {
 
   private static readonly placeLookup = new CachedPlaceLookup(CACHE_SIZE);
 
+  private placeUpdateId = 0;
+
   /**
    * Re-queries the set of consumed fields and re-fetches place data.
    *
    * Rejects with an error from the underlying Google Maps JavaScript API call
-   * and dispatches a `gmpx-requesterror` event if the fetch fails.
+   * if the fetch fails. Also shows the `error` slot and dispatches a
+   * `gmpx-requesterror` event, unless `place` changed or another fetch started
+   * while this one was pending.
    */
   async refresh(): Promise<void> {
+    const updateId = ++this.placeUpdateId;
     try {
-      await this.updatePlace();
+      await this.updatePlace(updateId);
     } catch (error: unknown) {
-      this.handleError(error);
+      if (updateId === this.placeUpdateId) {
+        this.handleError(error);
+      }
       throw error;
     }
   }
@@ -150,15 +157,23 @@ export class PlaceDataProvider extends BaseComponent {
 
   protected override async updated(changedProperties: PropertyValues<this>) {
     if (changedProperties.has('place')) {
+      const updateId = ++this.placeUpdateId;
       try {
-        await this.updatePlace();
+        await this.updatePlace(updateId);
       } catch (error: unknown) {
-        this.handleError(error);
+        if (updateId === this.placeUpdateId) {
+          this.handleError(error);
+        }
       }
     }
   }
 
-  private async updatePlace() {
+  /**
+   * Loads `this.place` into the context. Returns early without changing state
+   * once a newer update has started, since its result is then outdated.
+   */
+  private async updatePlace(updateId: number) {
+    const isCurrent = () => updateId === this.placeUpdateId;
     this.loadingState = LoadingState.LOADING;
     // Set this.contextPlace to an appropriate Place v2, according to the
     // type of this.place
@@ -167,10 +182,13 @@ export class PlaceDataProvider extends BaseComponent {
       this.loadingState = LoadingState.EMPTY;
       return;
     } else if (typeof this.place === 'string') {
-      this.contextPlace =
-          await PlaceDataProvider.placeLookup.getPlace(this.place);
+      const place = await PlaceDataProvider.placeLookup.getPlace(this.place);
+      if (!isCurrent()) return;
+      this.contextPlace = place;
     } else if (isPlaceResult(this.place)) {
-      this.contextPlace = await makePlaceFromPlaceResult(this.place, this);
+      const place = await makePlaceFromPlaceResult(this.place, this);
+      if (!isCurrent()) return;
+      this.contextPlace = place;
       PlaceDataProvider.placeLookup.updatePlace(this.contextPlace);
     } else {  // this.place is a Place
       this.contextPlace = this.place;
@@ -186,6 +204,7 @@ export class PlaceDataProvider extends BaseComponent {
       } else {
         // Defer execution to ensure that place consumers finish registration
         await 0;
+        if (!isCurrent()) return;
         fields = this.getConsumerFields();
       }
       try {
@@ -195,14 +214,17 @@ export class PlaceDataProvider extends BaseComponent {
           // If the SDK doesn't support fetchFields(), replace the Place with a
           // shimmed version, taking advantage of the fallback capabilities of
           // `makePlaceFromPlaceResult()`.
-          this.contextPlace =
+          const place =
               await makePlaceFromPlaceResult({place_id: this.contextPlace.id});
+          if (!isCurrent()) return;
+          this.contextPlace = place;
           PlaceDataProvider.placeLookup.updatePlace(this.contextPlace);
           await this.contextPlace.fetchFields({fields});
         } else {
           throw error;
         }
       }
+      if (!isCurrent()) return;
       // Manually update consumers of the context Place, since the object has
       // been mutated
       for (const consumer of this.placeConsumers) {

@@ -51,7 +51,9 @@ This component uses [named slots](https://developer.mozilla.org/en-US/docs/Web/A
 Re-queries the set of consumed fields and re-fetches place data.
 
 Rejects with an error from the underlying Google Maps JavaScript API call
-and dispatches a `gmpx-requesterror` event if the fetch fails.
+if the fetch fails. Also shows the `error` slot and dispatches a
+`gmpx-requesterror` event, unless `place` changed or another fetch started
+while this one was pending.
 
 **Returns:** `Promise<void>`
 
