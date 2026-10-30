@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {html, PropertyValues} from 'lit';
+import {ComplexAttributeConverter, html, PropertyValues} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
 
 import {BaseComponent} from '../base/base_component.js';
@@ -45,6 +45,18 @@ function stringArraysDiffer(value?: string[], oldValue?: string[]): boolean {
   if (!value || !oldValue || value.length !== oldValue.length) return true;
   return value.some((item, i) => item !== oldValue[i]);
 }
+
+/**
+ * Converts the `channel` attribute to a number, treating an empty attribute
+ * as unset.
+ */
+const CHANNEL_ATTRIBUTE_CONVERTER:
+    ComplexAttributeConverter<number|undefined> = {
+      fromAttribute(attr: string|null): number |
+          undefined {
+            return attr?.trim() ? Number(attr) : undefined;
+          },
+    };
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -89,6 +101,17 @@ export class APILoader extends BaseComponent {
    */
   @property({attribute: 'auth-referrer-policy', reflect: true, type: String})
   authReferrerPolicy?: string;
+
+  /**
+   * A whole number from 0 to 999 to track Maps JavaScript API usage by
+   * channel. Usage is reported in the Billing Report under the label
+   * `goog-maps-channel`. Some APIs that Extended Components use, such as
+   * Places API (New), Routes API and Address Validation API, do not report
+   * usage by channel. Read more in the
+   * [documentation](https://developers.google.com/maps/reporting-and-monitoring/reporting#usage-tracking-per-channel).
+   */
+  @property({converter: CHANNEL_ATTRIBUTE_CONVERTER, reflect: true})
+  channel?: number;
 
   /**
    * (Required) A valid Google Maps Platform API key. If you don't have one
@@ -195,6 +218,18 @@ export class APILoader extends BaseComponent {
     return this.solutionChannel;
   }
 
+  private getChannel(): number|undefined {
+    const {channel} = this;
+    if (channel == null) return undefined;
+    if (Number.isInteger(channel) && channel >= 0 && channel <= 999) {
+      return channel;
+    }
+    this.logger.warn(
+        'Ignoring the channel because it is not a whole number ' +
+        'from 0 to 999.');
+    return undefined;
+  }
+
   private tryLoadGoogleMapsAPI(changedProperties: PropertyValues<this>) {
     if (APILoader.googleMapsDeferred.value) {
       if (APILoader.inlineScriptLoaded) {
@@ -211,6 +246,7 @@ export class APILoader extends BaseComponent {
     } else if (this.key !== undefined) {
       const {key, version, language, region, authReferrerPolicy, mapIds} = this;
       const solutionChannel = this.getSolutionChannel();
+      const channel = this.getChannel();
       const googleMaps = inlineScript.load({
         key,
         ...(version && {v: version}),
@@ -219,6 +255,7 @@ export class APILoader extends BaseComponent {
         ...(solutionChannel && {solutionChannel}),
         ...(authReferrerPolicy && {authReferrerPolicy}),
         ...(mapIds?.length && {mapIds}),
+        ...(channel !== undefined && {channel}),
       });
       APILoader.inlineScriptLoaded = true;
       APILoader.googleMapsDeferred.resolve(googleMaps);

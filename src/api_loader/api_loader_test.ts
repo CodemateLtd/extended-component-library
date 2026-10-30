@@ -109,6 +109,7 @@ describe('APILoader', () => {
               auth-referrer-policy="origin"
               solution-channel="GMP_QB_locatorplus_v6"
               map-ids="MAP_ID_1 MAP_ID_2"
+              channel="7"
             ></gmpx-api-loader>
           `
     });
@@ -123,6 +124,7 @@ describe('APILoader', () => {
       solutionChannel: 'GMP_QB_locatorplus_v6',
       authReferrerPolicy: 'origin',
       mapIds: ['MAP_ID_1', 'MAP_ID_2'],
+      channel: 7,
     });
 
     waitForAnyPolling();
@@ -141,6 +143,7 @@ describe('APILoader', () => {
     loaderEl!.solutionChannel = 'GMP_QB_locatorplus_v6';
     loaderEl!.authReferrerPolicy = 'origin';
     loaderEl!.mapIds = ['MAP_ID_1', 'MAP_ID_2'];
+    loaderEl!.channel = 7;
     await env.waitForStability();
 
     expect(consumerEl!.coreLibrary)
@@ -153,6 +156,7 @@ describe('APILoader', () => {
       solutionChannel: 'GMP_QB_locatorplus_v6',
       authReferrerPolicy: 'origin',
       mapIds: ['MAP_ID_1', 'MAP_ID_2'],
+      channel: 7,
     });
 
     waitForAnyPolling();
@@ -206,6 +210,73 @@ describe('APILoader', () => {
           `GMP_${ATTRIBUTION_SOURCE_ID}_extended_v${LIBRARY_VERSION}`,
     });
   });
+
+  it('forwards channel 0', async () => {
+    const {scriptLoadSpy} = await prepareState({
+      loaderHTML: html`
+            <gmpx-api-loader key="TEST_API_KEY" channel="0"></gmpx-api-loader>
+          `
+    });
+
+    expect(scriptLoadSpy).toHaveBeenCalledOnceWith(jasmine.objectContaining({
+      channel: 0
+    }));
+  });
+
+  it('omits channel when the attribute is empty', async () => {
+    const {scriptLoadSpy, consoleWarnSpy} = await prepareState({
+      loaderHTML: html`
+            <gmpx-api-loader key="TEST_API_KEY" channel=""></gmpx-api-loader>
+          `
+    });
+
+    expect(scriptLoadSpy).toHaveBeenCalledOnceWith({
+      key: 'TEST_API_KEY',
+      v: 'beta',
+      solutionChannel:
+          `GMP_${ATTRIBUTION_SOURCE_ID}_extended_v${LIBRARY_VERSION}`,
+    });
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('omits channel when the property is null', async () => {
+    const {loaderEl, scriptLoadSpy, consoleWarnSpy} = await prepareState();
+
+    // React and untyped callers can clear a property with null.
+    loaderEl!.channel = null as unknown as number;
+    loaderEl!.key = 'TEST_API_KEY';
+    await env.waitForStability();
+
+    expect(scriptLoadSpy).toHaveBeenCalledOnceWith({
+      key: 'TEST_API_KEY',
+      v: 'beta',
+      solutionChannel:
+          `GMP_${ATTRIBUTION_SOURCE_ID}_extended_v${LIBRARY_VERSION}`,
+    });
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  for (const channel of ['1000', '-1', '1.5', 'abc']) {
+    it(`omits channel ${channel} and logs warning`, async () => {
+      const {scriptLoadSpy, consoleWarnSpy} = await prepareState({
+        loaderHTML: html`
+                <gmpx-api-loader key="TEST_API_KEY" channel=${channel}>
+                </gmpx-api-loader>
+              `
+      });
+
+      expect(scriptLoadSpy).toHaveBeenCalledOnceWith({
+        key: 'TEST_API_KEY',
+        v: 'beta',
+        solutionChannel:
+            `GMP_${ATTRIBUTION_SOURCE_ID}_extended_v${LIBRARY_VERSION}`,
+      });
+      expect(consoleWarnSpy)
+          .toHaveBeenCalledOnceWith(
+              '<gmpx-api-loader>: Ignoring the channel because it is not a ' +
+              'whole number from 0 to 999.');
+    });
+  }
 
   it('loads API when key is set using the `apiKey` alias', async () => {
     const {loaderEl, consumerEl, scriptLoadSpy} = await prepareState();
@@ -412,6 +483,14 @@ describe('APILoader', () => {
       `);
 
       expect(url.searchParams.get('map_ids')).toBe('MAP_ID_1,MAP_ID_2');
+    });
+
+    it('sends channel 0', async () => {
+      const url = await getScriptUrl(html`
+        <gmpx-api-loader key="TEST_API_KEY" channel="0"></gmpx-api-loader>
+      `);
+
+      expect(url.searchParams.get('channel')).toBe('0');
     });
   });
 });
