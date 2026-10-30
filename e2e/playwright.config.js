@@ -36,5 +36,12 @@ export default defineConfig({
       name: 'firefox',
       use: {...devices['Desktop Firefox']},
     },
+    /* WebKit on Linux, where CI runs, focuses a button when it is clicked,
+       but WebKit on macOS, like Safari, does not. Tests that depend on where
+       a mouse click leaves focus pass on Linux and may fail on a Mac. */
+    {
+      name: 'webkit',
+      use: {...devices['Desktop Safari']},
+    },
   ],
 });
