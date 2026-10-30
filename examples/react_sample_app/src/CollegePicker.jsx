@@ -10,7 +10,12 @@ import {PlacePicker} from '@googlemaps/extended-component-library/react';
  * Component that allows users to enter a college in the US or Canada,
  * with autocomplete suggestions.
  */
-export function CollegePicker({className, forMap, onCollegeChange}) {
+export function CollegePicker({
+  className,
+  forMap,
+  onCollegeChange,
+  onRequestError,
+}) {
   return (
     <PlacePicker
       className={className}
@@ -21,6 +26,7 @@ export function CollegePicker({className, forMap, onCollegeChange}) {
       onPlaceChange={(e) => {
         onCollegeChange(e.target.value);
       }}
+      onRequestError={onRequestError}
     />
   );
 }

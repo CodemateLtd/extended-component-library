@@ -36,6 +36,14 @@
   flex-direction: column;
 }
 
+.Status {
+  margin: 1rem 1rem 0;
+}
+
+.Status:empty {
+  margin: 0;
+}
+
 .CollegePicker {
   --gmpx-color-surface: #fff;
   flex-grow: 1;
