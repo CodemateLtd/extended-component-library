@@ -9,6 +9,8 @@ import {expect, test} from '@playwright/test';
 test('JS sample clears the selected college from every consumer',
     async ({page}) => {
       await page.setContent(`
+        <gmpx-api-loader key="test-key"></gmpx-api-loader>
+        <p id="status"></p>
         <gmp-map><gmp-advanced-marker></gmp-advanced-marker></gmp-map>
         <gmpx-place-picker></gmpx-place-picker>
         <gmpx-place-overview></gmpx-place-overview>

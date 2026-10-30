@@ -33,6 +33,14 @@ html, body {
   margin: 0;
 }
 
+#status {
+  margin: 1rem 1rem 0;
+}
+
+#status:empty {
+  margin: 0;
+}
+
 gmpx-place-picker {
   --gmpx-color-surface: #fff;
   display: block;
