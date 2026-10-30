@@ -64,17 +64,51 @@ for (const app of SAMPLE_APP_CONFIGS) {
             .poll(() => dataProvider.evaluate((element) => element.place?.id))
             .toBe(place.id);
 
-        const reviews = page.locator('gmpx-place-reviews');
-        await page.getByText('See Reviews').click();
-        await expect(reviews).toBeVisible();
-        await page.keyboard.press('Escape');
-        await expect(reviews).not.toBeVisible();
-
         const popupPromise = page.waitForEvent('popup');
         await page.getByText('Directions').click();
         const popup = await popupPromise;
         await popup.waitForLoadState();
         await expect(popup.url()).toContain('https://www.google.com/maps/dir');
         await expect(popup.url()).toContain('Cambridge');
+      });
+
+  test(
+      `${app.title} opens and closes the reviews from the keyboard`,
+      async ({page}) => {
+        await openSampleApp(page, app);
+        await searchCollege(page, 'mit');
+        await expect(page.locator('gmpx-place-overview'))
+            .toContainText('Massachusetts Institute of Technology');
+
+        const seeReviews =
+            page.getByRole('button', {name: 'See Reviews', exact: true});
+        const directions =
+            page.getByRole('link', {name: 'Directions', exact: true});
+        const close = page.getByRole('button', {name: 'Close', exact: true});
+        const reviews = page.locator('gmpx-place-reviews');
+
+        // See Reviews and Directions are in tab order.
+        await seeReviews.focus();
+        await page.keyboard.press('Tab');
+        await expect(directions).toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(seeReviews).toBeFocused();
+
+        // Opening moves focus to the autofocus Close button, and closing
+        // returns it to See Reviews.
+        await page.keyboard.press('Enter');
+        await expect(reviews).toBeVisible();
+        await expect(close).toBeFocused();
+        await page.keyboard.press('Space');
+        await expect(reviews).not.toBeVisible();
+        await expect(seeReviews).toBeFocused();
+
+        // Escape inside the overlay closes it the same way.
+        await page.keyboard.press('Enter');
+        await expect(reviews).toBeVisible();
+        await expect(close).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(reviews).not.toBeVisible();
+        await expect(seeReviews).toBeFocused();
       });
 }
