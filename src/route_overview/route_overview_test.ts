@@ -8,12 +8,15 @@
 
 import {html, TemplateResult} from 'lit';
 
+import {RouteNotFoundEvent} from '../base/events.js';
 import {LoggingController} from '../base/logging_controller.js';
 import {RouteDataProvider} from '../route_building_blocks/route_data_provider/route_data_provider.js';
 import {RouteMarker} from '../route_building_blocks/route_marker/route_marker.js';
 import {RoutePolyline} from '../route_building_blocks/route_polyline/route_polyline.js';
+import {RoutesController} from '../route_building_blocks/routes_controller.js';
 import {Environment} from '../testing/environment.js';
 import {makeFakeRoute} from '../testing/fake_route.js';
+import type {ComputeRoutesResponse, GeocodingResults} from '../utils/googlemaps_types.js';
 
 import {RouteOverview} from './route_overview.js';
 
@@ -176,6 +179,42 @@ describe('RouteOverview', () => {
             'gmpx-route-marker[waypoint="destination"]');
 
     expect(destinationMarkers.length).toEqual(1);
+  });
+
+  describe('when no route is found', () => {
+    beforeEach(() => {
+      RoutesController.reset();
+    });
+
+    afterEach(() => {
+      RoutesController.reset();
+    });
+
+    it('dispatches the event from its data provider', async () => {
+      const geocodingResults = {
+        origin: {geocoderStatus: 'NOT_FOUND'},
+        destination: {geocoderStatus: 'OK'},
+      } as unknown as GeocodingResults;
+      env.fakeGoogleMapsHarness!.computeRoutesHandler = () => Promise.resolve({
+        routes: [],
+        geocodingResults,
+      } as unknown as ComputeRoutesResponse);
+      const listener = jasmine.createSpy('routeNotFound');
+      env.render(html`
+        <gmpx-route-overview origin-address="A" destination-address="Z"
+            @gmpx-routenotfound=${listener}>
+        </gmpx-route-overview>`);
+      // A response passes through several awaits before it is reported.
+      for (let i = 0; i < 5; i++) {
+        await env.waitForStability();
+        await Promise.resolve();
+      }
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      const event = listener.calls.mostRecent().args[0];
+      expect(event).toBeInstanceOf(RouteNotFoundEvent);
+      expect(event.geocodingResults).toBe(geocodingResults);
+    });
   });
 });
 

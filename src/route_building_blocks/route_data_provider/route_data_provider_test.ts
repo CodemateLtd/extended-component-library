@@ -11,10 +11,11 @@ import {consume} from '@lit/context';
 import {html, LitElement, TemplateResult} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
 
+import {RouteNotFoundEvent} from '../../base/events.js';
 import {LoggingController} from '../../base/logging_controller.js';
 import {Environment} from '../../testing/environment.js';
 import {Deferred} from '../../utils/deferred.js';
-import type {ComputeRoutesRequest, ComputeRoutesResponse, Route} from '../../utils/googlemaps_types.js';
+import type {ComputeRoutesRequest, ComputeRoutesResponse, GeocodingResults, Route} from '../../utils/googlemaps_types.js';
 import {routeContext} from '../route_data_consumer.js';
 import {RoutesController} from '../routes_controller.js';
 
@@ -348,6 +349,25 @@ describe('RouteDataProvider', () => {
       expect(provider.contextRoute).toBe(newRoute);
     });
 
+    it('ignores an older empty result after a newer route arrives',
+       async () => {
+         const {provider} = await renderProvider('A');
+         const notFoundListener = jasmine.createSpy('routeNotFound');
+         provider.addEventListener('gmpx-routenotfound', notFoundListener);
+         provider.originAddress = 'B';
+         await settle();
+         const newRoute = {} as Route;
+         pendingResponses.get('B')!.resolve(makeResponse(newRoute));
+         await settle();
+
+         pendingResponses.get('A')!.resolve(
+             {routes: []} as unknown as ComputeRoutesResponse);
+         await settle();
+
+         expect(notFoundListener).not.toHaveBeenCalled();
+         expect(provider.contextRoute).toBe(newRoute);
+       });
+
     it('ignores an older route after a newer request fails', async () => {
       const {provider, errorListener} = await renderProvider('A');
       provider.originAddress = 'B';
@@ -400,5 +420,80 @@ describe('RouteDataProvider', () => {
 
          expect(errorListener).toHaveBeenCalledTimes(1);
        });
+  });
+
+  describe('when no route is found', () => {
+    beforeEach(() => {
+      RoutesController.reset();
+    });
+
+    afterEach(() => {
+      RoutesController.reset();
+    });
+
+    async function renderProvider(
+        computeRoutes: () => Promise<ComputeRoutesResponse>) {
+      env.fakeGoogleMapsHarness!.computeRoutesHandler = computeRoutes;
+      const notFoundListener = jasmine.createSpy('routeNotFound');
+      const errorListener = jasmine.createSpy('requestError');
+      const root = env.render(html`
+        <gmpx-route-data-provider origin-address="A" destination-address="Z"
+            @gmpx-routenotfound=${notFoundListener}
+            @gmpx-requesterror=${errorListener}>
+        </gmpx-route-data-provider>`);
+      // A response passes through several awaits before it is reported.
+      for (let i = 0; i < 5; i++) {
+        await env.waitForStability();
+        await Promise.resolve();
+      }
+      const provider =
+          root.querySelector<RouteDataProvider>('gmpx-route-data-provider')!;
+      return {provider, notFoundListener, errorListener};
+    }
+
+    it('dispatches an event with the geocoding results', async () => {
+      const geocodingResults = {
+        origin: {geocoderStatus: 'NOT_FOUND'},
+        destination: {geocoderStatus: 'OK'},
+      } as unknown as GeocodingResults;
+      const {provider, notFoundListener, errorListener} =
+          await renderProvider(() => Promise.resolve({
+            routes: [],
+            geocodingResults,
+          } as unknown as ComputeRoutesResponse));
+
+      expect(notFoundListener).toHaveBeenCalledTimes(1);
+      const event = notFoundListener.calls.mostRecent().args[0];
+      expect(event).toBeInstanceOf(RouteNotFoundEvent);
+      expect(event.geocodingResults).toBe(geocodingResults);
+      expect(errorListener).not.toHaveBeenCalled();
+      expect(provider.contextRoute).toBeUndefined();
+    });
+
+    it('dispatches an event without geocoding results', async () => {
+      const {notFoundListener} = await renderProvider(
+          () => Promise.resolve(
+              {routes: []} as unknown as ComputeRoutesResponse));
+
+      expect(notFoundListener).toHaveBeenCalledTimes(1);
+      const event = notFoundListener.calls.mostRecent().args[0];
+      expect(event.geocodingResults).toBeNull();
+    });
+
+    it('dispatches nothing when a route is found', async () => {
+      const {provider, notFoundListener} = await renderProvider(
+          () => Promise.resolve(FAKE_COMPUTE_ROUTES_RESPONSE));
+
+      expect(notFoundListener).not.toHaveBeenCalled();
+      expect(provider.contextRoute).toBe(FAKE_ROUTE);
+    });
+
+    it('dispatches only a request error when the request fails', async () => {
+      const {notFoundListener, errorListener} = await renderProvider(
+          () => Promise.reject(new Error('Request failed')));
+
+      expect(errorListener).toHaveBeenCalledTimes(1);
+      expect(notFoundListener).not.toHaveBeenCalled();
+    });
   });
 });

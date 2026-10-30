@@ -94,6 +94,9 @@ export type ComputeRoutesRequest = google.maps.routes.ComputeRoutesRequest;
 export type ComputeRoutesResponse =
     Awaited<ReturnType<typeof google.maps.routes.Route.computeRoutes>>;
 
+/** google.maps.routes.GeocodingResults */
+export type GeocodingResults = google.maps.routes.GeocodingResults;
+
 /** typeof google.maps.routes.Route */
 export type RouteConstructor = typeof google.maps.routes.Route;
 

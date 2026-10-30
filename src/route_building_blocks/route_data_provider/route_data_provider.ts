@@ -8,8 +8,9 @@ import {provide} from '@lit/context';
 import {customElement, property} from 'lit/decorators.js';
 
 import {BaseComponent} from '../../base/base_component.js';
+import {RouteNotFoundEvent} from '../../base/events.js';
 import {LAT_LNG_LITERAL_ATTRIBUTE_CONVERTER} from '../../utils/attribute_converters.js';
-import type {DirectionsRoute, LatLng, LatLngLiteral, Route} from '../../utils/googlemaps_types.js';
+import type {ComputeRoutesResponse, DirectionsRoute, LatLng, LatLngLiteral, Route} from '../../utils/googlemaps_types.js';
 import {routeContext} from '../route_data_consumer.js';
 import {RoutesController} from '../routes_controller.js';
 
@@ -24,6 +25,10 @@ import {RoutesController} from '../routes_controller.js';
  *
  * @event {RequestErrorEvent} gmpx-requesterror - Indicates an error condition
  * in an underlying Google Maps JavaScript API call. (React: onRequestError)
+ * @event {RouteNotFoundEvent} gmpx-routenotfound - Indicates that the Routes
+ * API found no route, for example because an address could not be geocoded.
+ * The event's `geocodingResults` property holds the geocoding status of each
+ * address, or `null` if there is none. (React: onRouteNotFound)
  */
 @customElement('gmpx-route-data-provider')
 export class RouteDataProvider extends BaseComponent {
@@ -127,9 +132,14 @@ export class RouteDataProvider extends BaseComponent {
         this.destinationLatLng);
 
     if (numOrigins === 1 && numDestinations === 1) {
-      const route = await this.fetchRoute(isCurrent);
+      const response = await this.fetchRoutes(isCurrent);
       if (!isCurrent()) return;
-      this.contextRoute = route;
+      this.contextRoute = response?.routes?.[0];
+      if (response && !response.routes?.length) {
+        const routeNotFoundEvent =
+            new RouteNotFoundEvent(response.geocodingResults ?? null);
+        this.dispatchEvent(routeNotFoundEvent);
+      }
     } else {
       if (numOrigins > 1 && numDestinations !== 0) {
         this.logger.error(
@@ -145,10 +155,11 @@ export class RouteDataProvider extends BaseComponent {
     }
   }
 
-  private async fetchRoute(isCurrent: () => boolean): Promise<Route|undefined> {
+  private async fetchRoutes(isCurrent: () => boolean):
+      Promise<ComputeRoutesResponse|null> {
     // If the request fails, routesController.computeRoutes() will return null,
     // and dispatch a RequestErrorEvent if the request is still current.
-    const result = await this.routesController.computeRoutes(
+    return this.routesController.computeRoutes(
         {
           origin: this.getOriginRequestObject(),
           destination: this.getDestinationRequestObject(),
@@ -157,7 +168,6 @@ export class RouteDataProvider extends BaseComponent {
           polylineQuality: 'HIGH_QUALITY',
         },
         isCurrent);
-    return result?.routes ? result.routes[0] : undefined;
   }
 
   private getOriginRequestObject(): LatLng|LatLngLiteral|string {

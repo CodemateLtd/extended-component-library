@@ -13,6 +13,7 @@ import {customElement, property} from 'lit/decorators.js';
 import {when} from 'lit/directives/when.js';
 
 import {BaseComponent} from '../base/base_component.js';
+import {RouteNotFoundEvent} from '../base/events.js';
 import {LAT_LNG_LITERAL_ATTRIBUTE_CONVERTER} from '../utils/attribute_converters.js';
 import type {DirectionsRoute, LatLng, LatLngLiteral, Route} from '../utils/googlemaps_types.js';
 
@@ -30,6 +31,10 @@ const OUTER_POLYLINE_BLUE = '#2565cd';
  *
  * @event {RequestErrorEvent} gmpx-requesterror - Indicates an error condition
  * in an underlying Google Maps JavaScript API call. (React: onRequestError)
+ * @event {RouteNotFoundEvent} gmpx-routenotfound - Indicates that the Routes
+ * API found no route, for example because an address could not be geocoded.
+ * The event's `geocodingResults` property holds the geocoding status of each
+ * address, or `null` if there is none. (React: onRouteNotFound)
  */
 @customElement('gmpx-route-overview')
 export class RouteOverview extends BaseComponent {
@@ -113,6 +118,7 @@ export class RouteOverview extends BaseComponent {
     // clang-format off
     return html`
       <gmpx-route-data-provider
+          @gmpx-routenotfound=${this.forwardRouteNotFound}
           .destinationLatLng=${this.destinationLatLng}
           .destinationPlaceId=${this.destinationPlaceId}
           .destinationAddress=${this.destinationAddress}
@@ -161,6 +167,11 @@ export class RouteOverview extends BaseComponent {
       </gmpx-route-data-provider>
     `;
     // clang-format on
+  }
+
+  private forwardRouteNotFound(event: RouteNotFoundEvent) {
+    const routeNotFoundEvent = new RouteNotFoundEvent(event.geocodingResults);
+    this.dispatchEvent(routeNotFoundEvent);
   }
 }
 
