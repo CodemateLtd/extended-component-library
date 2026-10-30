@@ -178,6 +178,7 @@ export const RouteOverview = createComponent({
   react: React,
   events: {
     'onRequestError': 'gmpx-requesterror' as EventName<RequestErrorEvent>,
+    'onRouteNotFound': 'gmpx-routenotfound' as EventName<RouteNotFoundEvent>,
   },
 });
 
