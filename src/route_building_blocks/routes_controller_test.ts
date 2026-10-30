@@ -116,4 +116,23 @@ describe('RoutesController', () => {
     await env.waitForStability();
     expect(routesSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('does not dispatch an error event when told not to report', async () => {
+    const host = await prepareControllerHostElement();
+    const error: RoutesError = {
+      code: 'INVALID_ARGUMENT',
+      endpoint: 'ROUTES_COMPUTE_ROUTES',
+      name: 'MapsRequestError',
+      message: 'The webpage is not allowed to use the directions service'
+    };
+    spyOn(env.fakeGoogleMapsHarness!, 'computeRoutesHandler')
+        .and.rejectWith(error);
+    const dispatchSpy = spyOn(host, 'dispatchEvent');
+
+    const result =
+        await host.routesController.computeRoutes(FAKE_REQUEST, () => false);
+
+    expect(result).toBeNull();
+    expect(dispatchSpy).not.toHaveBeenCalled();
+  });
 });

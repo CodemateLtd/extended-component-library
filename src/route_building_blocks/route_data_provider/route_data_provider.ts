@@ -104,12 +104,17 @@ export class RouteDataProvider extends BaseComponent {
   travelMode: Lowercase<google.maps.TravelMode> = 'driving';
 
   private readonly routesController = new RoutesController(this);
+  private routeUpdateId = 0;
 
   protected override updated() {
     this.updateContextRoute();
   }
 
   private async updateContextRoute() {
+    // Each update makes the result of any pending request outdated.
+    const updateId = ++this.routeUpdateId;
+    const isCurrent = () => updateId === this.routeUpdateId;
+
     if (this.route) {
       this.contextRoute = this.route;
       return;
@@ -122,7 +127,9 @@ export class RouteDataProvider extends BaseComponent {
         this.destinationLatLng);
 
     if (numOrigins === 1 && numDestinations === 1) {
-      this.contextRoute = await this.fetchRoute();
+      const route = await this.fetchRoute(isCurrent);
+      if (!isCurrent()) return;
+      this.contextRoute = route;
     } else {
       if (numOrigins > 1 && numDestinations !== 0) {
         this.logger.error(
@@ -138,16 +145,18 @@ export class RouteDataProvider extends BaseComponent {
     }
   }
 
-  private async fetchRoute(): Promise<Route|undefined> {
-    // If the request fails, routesController.computeRoutes() will dispatch a
-    // RequestErrorEvent and return null.
-    const result = await this.routesController.computeRoutes({
-      origin: this.getOriginRequestObject(),
-      destination: this.getDestinationRequestObject(),
-      fields: ['legs', 'path', 'viewport'],
-      travelMode: this.travelMode?.toUpperCase() as google.maps.TravelMode,
-      polylineQuality: 'HIGH_QUALITY',
-    });
+  private async fetchRoute(isCurrent: () => boolean): Promise<Route|undefined> {
+    // If the request fails, routesController.computeRoutes() will return null,
+    // and dispatch a RequestErrorEvent if the request is still current.
+    const result = await this.routesController.computeRoutes(
+        {
+          origin: this.getOriginRequestObject(),
+          destination: this.getDestinationRequestObject(),
+          fields: ['legs', 'path', 'viewport'],
+          travelMode: this.travelMode?.toUpperCase() as google.maps.TravelMode,
+          polylineQuality: 'HIGH_QUALITY',
+        },
+        isCurrent);
     return result?.routes ? result.routes[0] : undefined;
   }
 

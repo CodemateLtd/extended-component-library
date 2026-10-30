@@ -37,9 +37,12 @@ export class RoutesController implements ReactiveController {
   /**
    * Makes a call to `Route.computeRoutes()` and returns the result as a
    * promise. If request fails, the promise will resolve to null, and this
-   * method will dispatch a `RequestErrorEvent` from the host element.
+   * method will dispatch a `RequestErrorEvent` from the host element unless
+   * `shouldReportError`, called when the request fails, returns false.
    */
-  async computeRoutes(request: ComputeRoutesRequest):
+  async computeRoutes(
+      request: ComputeRoutesRequest,
+      shouldReportError: () => boolean = () => true):
       Promise<ComputeRoutesResponse|null> {
     let responsePromise = RoutesController.cache.get(request);
     if (responsePromise === null) {
@@ -51,8 +54,10 @@ export class RoutesController implements ReactiveController {
       const awaited = await responsePromise;
       return awaited;
     } catch (error) {
-      const requestErrorEvent = new RequestErrorEvent(error);
-      this.host.dispatchEvent(requestErrorEvent);
+      if (shouldReportError()) {
+        const requestErrorEvent = new RequestErrorEvent(error);
+        this.host.dispatchEvent(requestErrorEvent);
+      }
       return null;
     }
   }
