@@ -34,6 +34,14 @@
   flex-direction: column;
 }
 
+.status {
+  margin: 1rem 1rem 0;
+}
+
+.status:empty {
+  margin: 0;
+}
+
 gmpx-place-picker {
   --gmpx-color-surface: #fff;
   flex-grow: 1;
