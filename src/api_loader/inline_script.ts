@@ -15,6 +15,8 @@ declare interface BootstrapParams {
   region?: string;
   solutionChannel?: string;
   authReferrerPolicy?: string;
+  mapIds?: string[];
+  channel?: number;
 }
 
 /**
