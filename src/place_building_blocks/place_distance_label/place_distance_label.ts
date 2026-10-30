@@ -65,13 +65,15 @@ export class PlaceDistanceLabel extends PlaceDataConsumer {
   private routesUpdateId = 0;
 
   protected override willUpdate(changedProperties: PropertyValues) {
-    super.willUpdate(changedProperties);
-
-    // Re-fetch routes data if either origin or travel mode changes.
+    // Re-fetch routes data if either origin or travel mode changes. This runs
+    // before the base class computes `noData` from `routesData`, which
+    // `updateRoutesData()` clears synchronously when an input is missing.
     if (changedProperties.has('origin') ||
         changedProperties.has('travelMode')) {
       this.updateRoutesData();
     }
+
+    super.willUpdate(changedProperties);
   }
 
   protected override placeChangedCallback(
@@ -104,7 +106,10 @@ export class PlaceDistanceLabel extends PlaceDataConsumer {
   }
 
   protected override placeHasData(): boolean {
-    return this.routesData != null;
+    // Matches the condition in `render()`, so `noData` is true whenever the
+    // label renders nothing.
+    return !this.isFetchingRoutesData &&
+        !!this.routesData?.localizedValues?.distance;
   }
 
   private async updateRoutesData() {
