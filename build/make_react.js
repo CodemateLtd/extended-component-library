@@ -73,7 +73,7 @@ let content = `/**
 import * as React from 'react';
 import {createComponent} from '@lit/react';
 import type {EventName} from '@lit/react';
-import {RequestErrorEvent} from '../base/events.js';
+import {RequestErrorEvent, RouteNotFoundEvent} from '../base/events.js';
 `;  // Import new event types here (TS compiler will complain otherwise).
 
 for (const {name: className, tagName, events, path, members} of components) {

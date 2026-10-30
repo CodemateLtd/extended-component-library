@@ -45,9 +45,10 @@ import { RouteDataProvider } from '@googlemaps/extended-component-library/route_
 
 ## Events
 
-| Name                | React Prop       | Type                | Description                                                                    |
-| ------------------- | ---------------- | ------------------- | ------------------------------------------------------------------------------ |
-| `gmpx-requesterror` | `onRequestError` | `RequestErrorEvent` | Indicates an error condition in an underlying Google Maps JavaScript API call. |
+| Name                 | React Prop        | Type                 | Description                                                                                                                                                                                                         |
+| -------------------- | ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gmpx-requesterror`  | `onRequestError`  | `RequestErrorEvent`  | Indicates an error condition in an underlying Google Maps JavaScript API call.                                                                                                                                      |
+| `gmpx-routenotfound` | `onRouteNotFound` | `RouteNotFoundEvent` | Indicates that the Routes API found no route, for example because an address could not be geocoded. The event's `geocodingResults` property holds the geocoding status of each address, or `null` if there is none. |
 
 
 

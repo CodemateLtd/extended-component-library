@@ -9,7 +9,7 @@
 import * as React from 'react';
 import {createComponent} from '@lit/react';
 import type {EventName} from '@lit/react';
-import {RequestErrorEvent} from '../base/events.js';
+import {RequestErrorEvent, RouteNotFoundEvent} from '../base/events.js';
 
 import {APILoader as APILoaderWC} from '../api_loader/api_loader.js';
 
@@ -158,6 +158,7 @@ export const RouteDataProvider = createComponent({
   react: React,
   events: {
     'onRequestError': 'gmpx-requesterror' as EventName<RequestErrorEvent>,
+    'onRouteNotFound': 'gmpx-routenotfound' as EventName<RouteNotFoundEvent>,
   },
 });
 
