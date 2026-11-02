@@ -34,6 +34,23 @@ async function settledPageErrors(page, errors) {
 }
 
 /**
+ * Returns the picker's distance from the top of the page. A status message
+ * must not change it, or the picker moves under the user's pointer.
+ */
+async function pickerTop(page) {
+  return (await page.locator('gmpx-place-picker').boundingBox()).y;
+}
+
+/**
+ * Waits until the status line is empty, so Google Maps has loaded, then
+ * returns the picker's distance from the top of the page.
+ */
+async function pickerTopOnceLoaded(page) {
+  await expect(page.getByRole('status')).toHaveText('');
+  return pickerTop(page);
+}
+
+/**
  * Opens a sample app without waiting for Google Maps, for a page where the
  * Maps JavaScript API can't load.
  */
@@ -106,10 +123,12 @@ for (const app of SAMPLE_APP_CONFIGS) {
       await page.route(`${PLACES_RPC_URL}SearchText`, (route) => route.abort());
 
       await openSampleApp(page, app);
+      const initialPickerTop = await pickerTopOnceLoaded(page);
       await searchCollege(page, 'mit');
 
       await expect(page.getByRole('status'))
           .toHaveText('Couldn\'t search for colleges. Try again.');
+      expect(await pickerTop(page)).toBeCloseTo(initialPickerTop, 0);
       await expect(page.locator('gmp-map')).toHaveAttribute('zoom', '4');
       expect(await page.locator('gmpx-place-overview')
                  .evaluate((element) => element.place))
@@ -129,10 +148,12 @@ for (const app of SAMPLE_APP_CONFIGS) {
       });
 
       await openSampleApp(page, app);
+      const initialPickerTop = await pickerTopOnceLoaded(page);
       await searchCollege(page, 'mit');
 
       await expect(page.getByRole('status'))
           .toHaveText('Couldn\'t load details for this college. Try again.');
+      expect(await pickerTop(page)).toBeCloseTo(initialPickerTop, 0);
       await expect(page.locator('gmpx-place-overview'))
           .toContainText('Oops! Something went wrong.');
       await expect(page.locator('gmp-map')).toHaveAttribute('zoom', '16');
