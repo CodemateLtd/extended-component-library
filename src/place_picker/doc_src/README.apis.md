@@ -1,10 +1,10 @@
-### Places API
+### Places API (New)
 
 Used when fetching Places data based on user input.
 
 #### Documentation
 
-Places API [Place Autocomplete Widget documentation](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new). Please be sure to check this documentation for additional requirements and recommendations regarding your use.
+[Place Autocomplete Widget documentation](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new). Please be sure to check this documentation for additional requirements and recommendations regarding your use.
 
 #### Pricing
 

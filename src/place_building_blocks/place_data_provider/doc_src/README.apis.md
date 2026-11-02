@@ -1,4 +1,4 @@
-### Places API
+### Places API (New)
 
 Used when fetching Places data for the place specified via attribute/property.
 

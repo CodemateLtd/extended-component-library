@@ -130,13 +130,13 @@ picker.addEventListener('gmpx-placechange', () => {
 
 In addition to the [Maps JavaScript API](https://developers.google.com/maps/documentation/javascript?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components), this component relies on the following Google Maps Platform APIs which may incur cost and must be enabled.
 
-### Places API
+### Places API (New)
 
 Used when fetching Places data based on user input.
 
 #### Documentation
 
-Places API [Place Autocomplete Widget documentation](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components). Please be sure to check this documentation for additional requirements and recommendations regarding your use.
+[Place Autocomplete Widget documentation](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new?utm_source=github&utm_medium=documentation&utm_campaign=&utm_content=web_components). Please be sure to check this documentation for additional requirements and recommendations regarding your use.
 
 #### Pricing
 

@@ -1,10 +1,10 @@
-### Places Photos API
+### Places API (New)
 
-In addition to any APIs used by the Place Data Provider component, Photo Gallery relies on the Places Photos API to load image content for images associated with a Place.
+Photo Gallery loads the photos of its place through Places API (New), the same API the Place Data Provider component uses. It needs no other API.
 
 #### Documentation
 
-Places API [Photos documentation](https://developers.google.com/maps/documentation/javascript/places#places_photos). Please be sure to check this documentation for additional requirements and recommendations regarding your use.
+[Place Photos documentation](https://developers.google.com/maps/documentation/javascript/place-photos). Please be sure to check this documentation for additional requirements and recommendations regarding your use.
 
 #### Pricing
 
