@@ -18,3 +18,6 @@ MAPS_API_KEY="[REPLACE_WITH_YOUR_API_KEY]" npm run example:react_sample_app
 
 Note that this command will build the library locally to incorporate its latest
 changes, including those not yet released on NPM.
+
+See [Place Picker in the sample apps](../place-picker-migration.md) for the
+autocomplete restrictions, map bias, and selection and reset behavior used here.
