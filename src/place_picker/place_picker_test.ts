@@ -86,9 +86,28 @@ describe('PlacePicker', () => {
     await env.waitForStability();
   }
 
-  async function pressKey(input: HTMLInputElement, key: string) {
+  function dispatchKeydown(input: HTMLInputElement, key: string) {
     input.dispatchEvent(
         new KeyboardEvent('keydown', {key, bubbles: true, composed: true}));
+  }
+
+  /**
+   * Dispatches the click that a browser makes when Enter activates a button.
+   * The widget stops such a click from bubbling up to the page, so the click
+   * only reaches listeners that capture it on the way down.
+   */
+  function dispatchKeyboardClick(input: HTMLInputElement) {
+    input.addEventListener('click', (event) => {
+      event.stopPropagation();
+    }, {once: true});
+    input.dispatchEvent(
+        new MouseEvent('click', {detail: 0, bubbles: true, composed: true}));
+  }
+
+  async function pressKey(input: HTMLInputElement, key: string) {
+    dispatchKeydown(input, key);
+    // Run what the picker deferred to the end of the keydown's task.
+    jasmine.clock().tick(0);
     await env.waitForStability();
   }
 
@@ -442,6 +461,37 @@ describe('PlacePicker', () => {
             jasmine.objectContaining({textQuery: '123 Main St'}));
     expect(picker.value?.id).toBe('FAKE_QUERY_PLACE_ID');
   });
+
+  it(`doesn't search when Enter activates a control inside the widget`,
+     async () => {
+       const {input} = await prepareState();
+
+       await enterQueryText(input, '123 Main St');
+       // Enter on a button, such as the widget's attribution button, makes the
+       // browser click it in the same task as the keydown.
+       dispatchKeydown(input, 'Enter');
+       dispatchKeyboardClick(input);
+       jasmine.clock().tick(0);
+       await env.waitForStability();
+
+       expect(env.fakeGoogleMapsHarness!.searchByTextHandler)
+           .not.toHaveBeenCalled();
+     });
+
+  it(`searches on Enter after an earlier Enter activated a widget control`,
+     async () => {
+       const {input} = await prepareState();
+
+       await enterQueryText(input, '123 Main St');
+       dispatchKeydown(input, 'Enter');
+       dispatchKeyboardClick(input);
+       jasmine.clock().tick(0);
+       await pressKey(input, 'Enter');
+
+       expect(env.fakeGoogleMapsHarness!.searchByTextHandler)
+           .toHaveBeenCalledOnceWith(
+               jasmine.objectContaining({textQuery: '123 Main St'}));
+     });
 
   it(`leaves Enter to the widget after the user highlights a prediction`,
      async () => {
