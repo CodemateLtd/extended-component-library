@@ -32,7 +32,7 @@ declare global {
 /** A fake `google.maps.MapElement` class for testing purposes. */
 export class FakeMapElement extends LitElement {
   readonly innerMap = jasmine.createSpyObj<google.maps.Map>(
-      'Map', ['fitBounds', 'panTo', 'setOptions']);
+      'Map', ['addListener', 'fitBounds', 'getBounds', 'panTo', 'setOptions']);
 
   center: LatLng|LatLngLiteral|null = null;
   mapId: string|null = null;
@@ -71,5 +71,35 @@ export class FakeAdvancedMarkerElement extends LitElement {
     return {
       remove: () => {},
     };
+  }
+}
+
+/**
+ * A fake `google.maps.places.PlaceAutocompleteElement` class for testing
+ * purposes. Its text input is reachable through an open shadow root, and its
+ * options are plain properties.
+ */
+export class FakePlaceAutocompleteElement extends HTMLElement {
+  includedPrimaryTypes: string[]|null = null;
+  includedRegionCodes: string[]|null = null;
+  locationBias: google.maps.places.LocationBias|null = null;
+  locationRestriction: google.maps.places.LocationRestriction|null = null;
+  noClearButton = false;
+  noInputIcon = false;
+  placeholder: string|null = null;
+
+  readonly input = document.createElement('input');
+
+  constructor(options: google.maps.places.PlaceAutocompleteElementOptions) {
+    super();
+    this.attachShadow({mode: 'open', delegatesFocus: true}).append(this.input);
+    Object.assign(this, options);
+  }
+
+  get value(): string {
+    return this.input.value;
+  }
+  set value(value: string|null) {
+    this.input.value = value ?? '';
   }
 }

@@ -6,8 +6,7 @@
 
 import {ComputeRouteMatrixRequest, ComputeRoutesRequest, ComputeRoutesResponse, LatLng, LatLngLiteral, Place, PlaceResult, SearchByTextRequest} from '../utils/googlemaps_types.js';
 
-import {makeFakeAutocomplete} from './fake_autocomplete.js';
-import {FakeAdvancedMarkerElement, FakeMapElement} from './fake_gmp_components.js';
+import {FakeAdvancedMarkerElement, FakeMapElement, FakePlaceAutocompleteElement} from './fake_gmp_components.js';
 import {FakeLatLng, FakeLatLngBounds} from './fake_lat_lng.js';
 import {makeFakePlace} from './fake_place.js';
 import {makeFakeRoute} from './fake_route.js';
@@ -65,18 +64,10 @@ export class FakeGoogleMapsHarness {
       ({places: [] as Place[]});
 
   /**
-   * Spy for the fake Places Autocomplete.
+   * Spy that records any construction of the legacy
+   * `google.maps.places.Autocomplete` widget.
    */
-  autocompleteSpy = makeFakeAutocomplete();
-
-  /**
-   * Override this function to control the constructor for
-   * `google.maps.places.Autocomplete`.
-   */
-  autocompleteConstructor =
-      (input: HTMLInputElement,
-       options?: google.maps.places.AutocompleteOptions) =>
-          this.autocompleteSpy;
+  autocompleteConstructor = jasmine.createSpy('Autocomplete');
 
 
   /**
@@ -92,6 +83,10 @@ export class FakeGoogleMapsHarness {
   // tslint:disable:enforce-name-casing
   constructor() {
     const harness = this;
+    if (!customElements.get('gmp-place-autocomplete')) {
+      customElements.define(
+          'gmp-place-autocomplete', FakePlaceAutocompleteElement);
+    }
     this.libraries = {
       'core': {
         LatLng: FakeLatLng,
@@ -114,9 +109,11 @@ export class FakeGoogleMapsHarness {
           constructor(
               input: HTMLInputElement,
               options?: google.maps.places.AutocompleteOptions) {
-            return harness.autocompleteConstructor(input, options);
+            harness.autocompleteConstructor(input, options);
           }
         },
+
+        PlaceAutocompleteElement: FakePlaceAutocompleteElement,
 
         Place: class {
           constructor(options: google.maps.places.PlaceOptions) {

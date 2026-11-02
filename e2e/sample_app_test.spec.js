@@ -37,9 +37,12 @@ for (const {title, port} of SAMPLE_APP_CONFIGS) {
         await page.evaluate(() => customElements.whenDefined('gmp-map'));
         await expect(map).toHaveAttribute('zoom', '4');
 
-        const picker = page.locator('gmpx-place-picker input');
-        await picker.fill('mit');
-        await page.keyboard.press('Tab');
+        // The input is inside the autocomplete widget's closed shadow root.
+        const picker = page.locator('gmpx-place-picker gmp-place-autocomplete');
+        await picker.click();
+        await page.keyboard.type('mit');
+        // Enter in the input searches whether or not suggestions have loaded.
+        // Tab would go to the widget's attribution button when they have.
         await page.keyboard.press('Enter');
 
         const overview = page.locator('gmpx-place-overview');
