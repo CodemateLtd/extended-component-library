@@ -285,6 +285,13 @@ export class PlacePicker extends BaseComponent {
    */
   private predictionsNavigated = false;
 
+  /**
+   * Whether a click came from inside the widget since the last Enter keydown.
+   * Enter on one of the widget's own buttons, such as its attribution button,
+   * makes the browser click that button right after the keydown.
+   */
+  private widgetControlActivated = false;
+
   protected override willUpdate(changedProperties: PropertyValues) {
     if (changedProperties.has(/* @state */ 'disableSearch') &&
         this.disableSearch && this.focusController.isKeyboardNavigating &&
@@ -447,6 +454,11 @@ export class PlacePicker extends BaseComponent {
       const requestErrorEvent = new RequestErrorEvent(event);
       this.dispatchEvent(requestErrorEvent);
     });
+    // The widget stops the click of one of its buttons from bubbling, so listen
+    // for it while it is still travelling down.
+    autocompleteElement.addEventListener('click', () => {
+      this.widgetControlActivated = true;
+    }, {capture: true});
     autocompleteElement.addEventListener('input', () => {
       this.handleInput(autocompleteElement.value);
     });
@@ -548,8 +560,23 @@ export class PlacePicker extends BaseComponent {
     } else if (
         event.key === 'Enter' && !event.isComposing &&
         !this.predictionsNavigated) {
-      this.handleSearch();
+      this.handleEnter();
     }
+  }
+
+  /**
+   * Searches for the input text, unless this Enter was meant for a control
+   * inside the widget. The widget's shadow root is closed, so the keydown looks
+   * the same wherever focus is. The browser clicks a button that Enter
+   * activates in the same task as the keydown, so wait for that task to end
+   * and see whether a click came.
+   */
+  private async handleEnter() {
+    this.widgetControlActivated = false;
+    await new Promise((resolve) => {
+      setTimeout(resolve);
+    });
+    if (!this.widgetControlActivated) this.handleSearch();
   }
 
   private async handleSelect(event: PlacePredictionSelectEvent) {
