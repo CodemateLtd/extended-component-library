@@ -6,9 +6,11 @@
 
 import {expect, test} from '@playwright/test';
 
-import {openSampleApp, SAMPLE_APP_CONFIGS} from './sample_apps.js';
+import {openSampleApp, SAMPLE_APP_CONFIGS, searchCollege} from './sample_apps.js';
 
 const BOOTSTRAP_URL = 'https://maps.googleapis.com/maps/api/js?*';
+const PLACES_RPC_URL =
+    'https://places.googleapis.com/$rpc/google.maps.places.v1.Places/';
 
 /**
  * Starts collecting the page's uncaught errors and unhandled rejections.
@@ -97,6 +99,44 @@ for (const app of SAMPLE_APP_CONFIGS) {
       await expect(page.getByRole('status'))
           .toHaveText(
               'No Maps API key is set. Set MAPS_API_KEY and restart the app.');
+    });
+
+    test('reports a failed search and keeps the map empty', async ({page}) => {
+      const pageErrors = collectPageErrors(page);
+      await page.route(`${PLACES_RPC_URL}SearchText`, (route) => route.abort());
+
+      await openSampleApp(page, app);
+      await searchCollege(page, 'mit');
+
+      await expect(page.getByRole('status'))
+          .toHaveText('Couldn\'t search for colleges. Try again.');
+      await expect(page.locator('gmp-map')).toHaveAttribute('zoom', '4');
+      expect(await page.locator('gmpx-place-overview')
+                 .evaluate((element) => element.place))
+          .toBeUndefined();
+      expect(await settledPageErrors(page, pageErrors)).toEqual([]);
+    });
+
+    test('reports failed place details in the overview', async ({page}) => {
+      const pageErrors = collectPageErrors(page);
+      // Let the picker fetch its fields, and fail the overview's own request,
+      // whose field mask asks for the rating. The Maps JavaScript API sends
+      // the field mask in the x-goog-fieldmask header.
+      await page.route(`${PLACES_RPC_URL}GetPlace`, (route) => {
+        const fieldMask = route.request().headers()['x-goog-fieldmask'] ?? '';
+        return fieldMask.split(',').includes('rating') ? route.abort() :
+                                                         route.continue();
+      });
+
+      await openSampleApp(page, app);
+      await searchCollege(page, 'mit');
+
+      await expect(page.getByRole('status'))
+          .toHaveText('Couldn\'t load details for this college. Try again.');
+      await expect(page.locator('gmpx-place-overview'))
+          .toContainText('Oops! Something went wrong.');
+      await expect(page.locator('gmp-map')).toHaveAttribute('zoom', '16');
+      expect(await settledPageErrors(page, pageErrors)).toEqual([]);
     });
   });
 }
