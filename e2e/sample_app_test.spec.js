@@ -74,12 +74,18 @@ for (const app of SAMPLE_APP_CONFIGS) {
 
   test(
       `${app.title} opens and closes the reviews from the keyboard`,
-      async ({page}) => {
+      async ({page, browserName}) => {
         await openSampleApp(page, app);
         await searchCollege(page, 'mit');
         await expect(page.locator('gmpx-place-overview'))
             .toContainText('Massachusetts Institute of Technology');
 
+        // WebKit on macOS, like Safari by default, skips links on Tab and
+        // reaches them with Option+Tab (`Alt` in Playwright).
+        const tabToLink =
+            browserName === 'webkit' && process.platform === 'darwin' ?
+            'Alt+Tab' :
+            'Tab';
         const seeReviews =
             page.getByRole('button', {name: 'See Reviews', exact: true});
         const directions =
@@ -89,7 +95,7 @@ for (const app of SAMPLE_APP_CONFIGS) {
 
         // See Reviews and Directions are in tab order.
         await seeReviews.focus();
-        await page.keyboard.press('Tab');
+        await page.keyboard.press(tabToLink);
         await expect(directions).toBeFocused();
         await page.keyboard.press('Shift+Tab');
         await expect(seeReviews).toBeFocused();
