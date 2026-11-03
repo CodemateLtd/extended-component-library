@@ -22,3 +22,7 @@ To show a driving route between two locations, simply place a Route Overview ins
   </gmpx-route-overview>
 </gmp-map>
 ```
+
+### Try it in a sample app
+
+The [route sample app](../../examples/route_sample_app) takes an origin and destination from text inputs, draws the route with both a Route Overview and the route building blocks, and shows request errors.

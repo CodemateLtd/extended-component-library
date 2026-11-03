@@ -1,0 +1,99 @@
+<!--
+  Copyright 2026 Google LLC
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script type="module" src="./extended_component_library.min.js"></script>
+    <link href="./style.css" rel="stylesheet">
+    <title>GMPX - Route Sample App</title>
+  </head>
+  <body>
+    <gmpx-api-loader key="YOUR_API_KEY"></gmpx-api-loader>
+    <main>
+      <form id="route-form">
+        <label>
+          Origin
+          <input name="origin" value="Amsterdam" required>
+        </label>
+        <label>
+          Destination
+          <input name="destination" value="Berlin" required>
+        </label>
+        <button type="submit">Show route</button>
+      </form>
+      <p class="note">
+        If an address can't be found, or there is no route between the two
+        places, the maps show no route and no error message.
+      </p>
+      <p id="error-message" class="error" role="alert" hidden></p>
+      <div class="maps">
+        <section>
+          <h2>Route Overview</h2>
+          <gmp-map map-id="DEMO_MAP_ID">
+            <gmpx-route-overview></gmpx-route-overview>
+          </gmp-map>
+        </section>
+        <section>
+          <h2>Route building blocks</h2>
+          <gmp-map map-id="DEMO_MAP_ID">
+            <gmpx-route-data-provider>
+              <gmpx-route-polyline
+                  stroke-color="#8a5cf4"
+                  stroke-weight="6"
+                  stroke-opacity="0.8"
+                  fit-in-viewport>
+              </gmpx-route-polyline>
+              <!-- Marker content is moved into the map, so its styles are
+                   inline. top: 15px centers the 30px circle on the waypoint,
+                   because a marker is anchored at its bottom center. -->
+              <gmpx-route-marker waypoint="origin">
+                <div style="
+                    background-color: #fff;
+                    border: 3px solid #8a5cf4;
+                    border-radius: 50%;
+                    font: bold 14px/24px sans-serif;
+                    height: 24px;
+                    position: relative;
+                    text-align: center;
+                    top: 15px;
+                    width: 24px;">
+                  A
+                </div>
+              </gmpx-route-marker>
+              <gmpx-route-marker waypoint="destination">
+                <div style="
+                    background-color: #8a5cf4;
+                    border: 3px solid #fff;
+                    border-radius: 50%;
+                    color: #fff;
+                    font: bold 14px/24px sans-serif;
+                    height: 24px;
+                    position: relative;
+                    text-align: center;
+                    top: 15px;
+                    width: 24px;">
+                  B
+                </div>
+              </gmpx-route-marker>
+            </gmpx-route-data-provider>
+          </gmp-map>
+        </section>
+      </div>
+    </main>
+    <script src="./index.js"></script>
+  </body>
+</html>
