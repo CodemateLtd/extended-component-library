@@ -69,6 +69,22 @@ describe('RoutePolyline', () => {
     await expectAsync(polyline.innerPolylinePromise).toBeResolved();
   });
 
+  it('logs an error when the maps library fails to load', async () => {
+    const error = new Error('The Google Maps JavaScript API could not load.');
+    env.importLibrarySpy!.and.callFake(() => Promise.reject(error));
+    spyOn(console, 'error');
+
+    const root = env.render(html`<gmpx-route-polyline></gmpx-route-polyline>`);
+    await env.waitForStability();
+    const polyline = root.querySelector<RoutePolyline>('gmpx-route-polyline')!;
+
+    expect(console.error)
+        .toHaveBeenCalledOnceWith(
+            '<gmpx-route-polyline>: Failed to load the Google Maps JavaScript API.',
+            error);
+    expect(polyline.innerPolyline).toBeUndefined();
+  });
+
   it('initializes display properties to undefined or false', async () => {
     const {polyline} = await prepareState();
 

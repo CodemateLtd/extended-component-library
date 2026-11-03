@@ -74,9 +74,16 @@ export class RouteMarker extends RouteDataConsumer {
   }
 
   private async initMarker() {
-    const {AdvancedMarkerElement} =
-        await APILoader.importLibrary('marker', this) as unknown as
-        MarkerLibrary;
+    let markerLibrary: MarkerLibrary;
+    try {
+      markerLibrary = await APILoader.importLibrary('marker', this) as
+          unknown as MarkerLibrary;
+    } catch (error: unknown) {
+      this.logger.error(
+          'Failed to load the Google Maps JavaScript API.', error);
+      return;
+    }
+    const {AdvancedMarkerElement} = markerLibrary;
     const marker = new AdvancedMarkerElement();
     this.innerMarkerDeferred.resolve(marker);
   }

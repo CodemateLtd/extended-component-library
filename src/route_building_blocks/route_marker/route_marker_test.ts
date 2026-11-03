@@ -92,6 +92,22 @@ describe('RouteMarker', () => {
     await expectAsync(marker.innerMarkerPromise).toBeResolved();
   });
 
+  it('logs an error when the marker library fails to load', async () => {
+    const error = new Error('The Google Maps JavaScript API could not load.');
+    env.importLibrarySpy!.and.callFake(() => Promise.reject(error));
+    spyOn(console, 'error');
+
+    const root = env.render(html`<gmpx-route-marker></gmpx-route-marker>`);
+    await env.waitForStability();
+    const marker = root.querySelector<RouteMarker>('gmpx-route-marker')!;
+
+    expect(console.error)
+        .toHaveBeenCalledOnceWith(
+            '<gmpx-route-marker>: Failed to load the Google Maps JavaScript API.',
+            error);
+    expect(marker.innerMarker).toBeUndefined();
+  });
+
   it('sets default values on the AdvancedMarkerElement', async () => {
     const {innerMarker} = await prepareState();
 

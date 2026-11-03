@@ -136,6 +136,28 @@ describe('Place Data Consumer base class', () => {
     expect(placeChangedSpy).toHaveBeenCalledOnceWith(FAKE_PLACE, undefined);
   });
 
+  it('logs an error and keeps its place when a PlaceResult cannot be converted',
+     async () => {
+       const consumer = await preparePlaceConsumer(FAKE_PLACE);
+       const error =
+           new Error('The Google Maps JavaScript API could not load.');
+       env.importLibrarySpy!.and.callFake(() => Promise.reject(error));
+       spyOn(console, 'error');
+       const placeChangedSpy = spyOn(
+           TestPlaceDataConsumerConcrete.prototype, 'placeChangedCallback');
+
+       consumer.place = {place_id: 'FAKE_PLACE_RESULT_ID'};
+       await env.waitForStability();
+
+       expect(console.error)
+           .toHaveBeenCalledOnceWith(
+               '<gmpx-test-place-data-consumer-concrete>: Failed to convert the PlaceResult to a Place.',
+               error);
+       expect(consumer.getPlace()).toBe(FAKE_PLACE);
+       expect(consumer.noData).toBeFalse();
+       expect(placeChangedSpy).not.toHaveBeenCalled();
+     });
+
   it('invokes callback when place is received via context', async () => {
     const placeChangedSpy =
         spyOn(TestPlaceDataConsumerConcrete.prototype, 'placeChangedCallback');

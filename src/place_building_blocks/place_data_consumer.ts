@@ -154,7 +154,13 @@ export abstract class PlaceDataConsumer extends BaseComponent {
     if (!value || !isPlaceResult(value)) {
       this.placeV2 = value;
     } else {
-      this.placeV2 = await makePlaceFromPlaceResult(value, this);
+      try {
+        this.placeV2 = await makePlaceFromPlaceResult(value, this);
+      } catch (error: unknown) {
+        this.logger.error(
+            'Failed to convert the PlaceResult to a Place.', error);
+        return;
+      }
     }
     this.placeChangedCallback(this.placeV2, oldPlace);
   }
