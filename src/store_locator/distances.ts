@@ -8,7 +8,8 @@ import {APILoader} from '../api_loader/api_loader.js';
 import {RequestErrorEvent} from '../base/events.js';
 import {ComputeRouteMatrixRequest, ComputeRouteMatrixResponse, LatLng, LatLngLiteral, RouteMatrixConstructor} from '../utils/googlemaps_types.js';
 import {RequestCache} from '../utils/request_cache.js';
-import {isRetriableRpcError} from '../utils/rpc_status.js';
+import {requestWithRetries} from '../utils/retry.js';
+import {isAutoRetriableRpcError, isRetriableRpcError} from '../utils/rpc_status.js';
 
 const CACHE_SIZE = 10;
 // Self-imposed cap on how many destinations are sent to the Route Matrix API in
@@ -57,6 +58,10 @@ export class DistanceMeasurer {
    * there are more, this method assigns a geometric distance to all N
    * `destinations`, then uses the Route Matrix to compute accurate distances
    * to the 25 nearest options.
+   *
+   * A request that fails with a transient UNAVAILABLE or UNKNOWN error is
+   * retried with a backoff, up to three attempts in total; `onError` is
+   * called only once the attempts run out.
    */
   async computeDistances(
       origin: LatLng|LatLngLiteral, destinations: Array<LatLng|LatLngLiteral>,
@@ -98,8 +103,11 @@ export class DistanceMeasurer {
     };
     let responsePromise = DistanceMeasurer.cache.get(request);
     if (responsePromise == null) {
-      responsePromise = this.getRouteMatrixClass().then(
-          (routeMatrixClass) => routeMatrixClass.computeRouteMatrix(request));
+      responsePromise = requestWithRetries(
+          () => this.getRouteMatrixClass().then(
+              (routeMatrixClass) =>
+                  routeMatrixClass.computeRouteMatrix(request)),
+          isAutoRetriableRpcError);
       DistanceMeasurer.cache.set(request, responsePromise);
     }
     let matrix: google.maps.routes.RouteMatrix;

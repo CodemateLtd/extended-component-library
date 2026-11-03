@@ -10,7 +10,8 @@ import {APILoader} from '../api_loader/api_loader.js';
 import {RequestErrorEvent} from '../base/events.js';
 import {ComputeRoutesRequest, ComputeRoutesResponse, RouteConstructor} from '../utils/googlemaps_types.js';
 import {RequestCache} from '../utils/request_cache.js';
-import {isRetriableRpcError} from '../utils/rpc_status.js';
+import {requestWithRetries} from '../utils/retry.js';
+import {isAutoRetriableRpcError, isRetriableRpcError} from '../utils/rpc_status.js';
 
 const CACHE_SIZE = 100;
 
@@ -36,15 +37,19 @@ export class RoutesController implements ReactiveController {
 
   /**
    * Makes a call to `Route.computeRoutes()` and returns the result as a
-   * promise. If request fails, the promise will resolve to null, and this
-   * method will dispatch a `RequestErrorEvent` from the host element.
+   * promise. A request that fails with a transient UNAVAILABLE or UNKNOWN
+   * error is retried with a backoff, up to three attempts in total. If the
+   * request still fails, the promise will resolve to null, and this method
+   * will dispatch a `RequestErrorEvent` from the host element.
    */
   async computeRoutes(request: ComputeRoutesRequest):
       Promise<ComputeRoutesResponse|null> {
     let responsePromise = RoutesController.cache.get(request);
     if (responsePromise === null) {
-      responsePromise = this.getRouteClass().then(
-          (routeClass) => routeClass.computeRoutes(request));
+      responsePromise = requestWithRetries(
+          () => this.getRouteClass().then(
+              (routeClass) => routeClass.computeRoutes(request)),
+          isAutoRetriableRpcError);
       RoutesController.cache.set(request, responsePromise);
     }
     try {
