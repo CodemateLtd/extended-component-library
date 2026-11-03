@@ -8,6 +8,7 @@
 import {RequestErrorEvent} from '../base/events.js';
 import {Environment} from '../testing/environment.js';
 import {FAKE_RM_VALUE, makeFakeRouteMatrixResponse} from '../testing/fake_route_matrix.js';
+import {settleRetries} from '../testing/mock_clock.js';
 import type {LatLngLiteral} from '../utils/googlemaps_types.js';
 
 import {DistanceInfo, DistanceMeasurer, DistanceSource} from './distances.js';
@@ -43,10 +44,20 @@ describe('DistanceMeasurer', () => {
     expect(distances).toEqual([DEFAULT_FAKE_DISTANCE, DEFAULT_FAKE_DISTANCE]);
   });
 
-  const TRANSIENT_ERROR_CODES =
-      ['RESOURCE_EXHAUSTED', 'UNAVAILABLE', 'UNKNOWN'];
+  /**
+   * `attemptsPerCall` is the number of service calls one caller call makes:
+   * three (the bounded automatic retries) for the statuses that are safe to
+   * retry, and one for RESOURCE_EXHAUSTED, which is never retried
+   * automatically since that could multiply the quota usage that made the
+   * request fail.
+   */
+  const TRANSIENT_ERROR_PARAMETERS = [
+    {code: 'RESOURCE_EXHAUSTED', attemptsPerCall: 1},
+    {code: 'UNAVAILABLE', attemptsPerCall: 3},
+    {code: 'UNKNOWN', attemptsPerCall: 3},
+  ];
 
-  for (const code of TRANSIENT_ERROR_CODES) {
+  for (const {code, attemptsPerCall} of TRANSIENT_ERROR_PARAMETERS) {
     it(`does not cache a transient error, ${code}`, async () => {
       const routeMatrixSpy =
           spyOn(env.fakeGoogleMapsHarness!, 'computeRouteMatrixHandler')
@@ -58,19 +69,67 @@ describe('DistanceMeasurer', () => {
       const units = 0 as google.maps.UnitSystem.IMPERIAL;
       const measurer = new DistanceMeasurer();
 
-      expect(await measurer.computeDistances(origin, destinations, units))
-          .toEqual([
-            {source: DistanceSource.GEOMETRIC, value: 1},
-            {source: DistanceSource.GEOMETRIC, value: 2},
-          ]);
+      const firstCall = measurer.computeDistances(origin, destinations, units);
+      await settleRetries();
+      expect(await firstCall).toEqual([
+        {source: DistanceSource.GEOMETRIC, value: 1},
+        {source: DistanceSource.GEOMETRIC, value: 2},
+      ]);
       routeMatrixSpy.and.callThrough();
       const distances =
           await measurer.computeDistances(origin, destinations, units);
 
-      expect(routeMatrixSpy).toHaveBeenCalledTimes(2);
+      expect(routeMatrixSpy).toHaveBeenCalledTimes(attemptsPerCall + 1);
       expect(distances).toEqual([DEFAULT_FAKE_DISTANCE, DEFAULT_FAKE_DISTANCE]);
     });
   }
+
+  it('recovers from a transient failure without a second caller call',
+     async () => {
+       const onError = jasmine.createSpy('onError');
+       const routeMatrixSpy =
+           spyOn(env.fakeGoogleMapsHarness!, 'computeRouteMatrixHandler')
+               .and.callFake((request) => {
+                 if (routeMatrixSpy.calls.count() === 1) {
+                   throw {code: 'UNAVAILABLE', name: 'MapsRequestError'} as
+                       google.maps.MapsRequestError;
+                 }
+                 return makeFakeRouteMatrixResponse(request);
+               });
+       const measurer = new DistanceMeasurer();
+
+       const distancesPromise = measurer.computeDistances(
+           {lat: 0, lng: 0}, [{lat: 1, lng: 1}],
+           0 as google.maps.UnitSystem.IMPERIAL, onError);
+       await settleRetries();
+       const distances = await distancesPromise;
+
+       expect(routeMatrixSpy).toHaveBeenCalledTimes(2);
+       expect(distances).toEqual([DEFAULT_FAKE_DISTANCE]);
+       expect(onError).not.toHaveBeenCalled();
+     });
+
+  it('reports a transient failure once, after the attempts run out',
+     async () => {
+       const onError = jasmine.createSpy('onError');
+       const error = Object.assign(
+           new Error('Route Matrix unavailable'), {code: 'UNAVAILABLE'});
+       const routeMatrixSpy =
+           spyOn(env.fakeGoogleMapsHarness!, 'computeRouteMatrixHandler')
+               .and.throwError(error);
+       const measurer = new DistanceMeasurer();
+
+       const distancesPromise = measurer.computeDistances(
+           {lat: 0, lng: 0}, [{lat: 1, lng: 1}],
+           0 as google.maps.UnitSystem.IMPERIAL, onError);
+       await settleRetries();
+       const distances = await distancesPromise;
+
+       expect(routeMatrixSpy).toHaveBeenCalledTimes(3);
+       expect(distances).toEqual(
+           [{source: DistanceSource.GEOMETRIC, value: 1}]);
+       expect(onError).toHaveBeenCalledOnceWith(error);
+     });
 
   it('caches a hard error, INVALID_ARGUMENT', async () => {
     const routeMatrixSpy =

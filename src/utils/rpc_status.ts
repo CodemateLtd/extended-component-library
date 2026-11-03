@@ -28,3 +28,26 @@ export function isRetriableRpcError(error: google.maps.MapsRequestError):
   // Widened to strings because `error.code` is not necessarily an RPCStatus.
   return (RETRIABLE_RPC_STATUSES as readonly string[]).includes(error.code);
 }
+
+/**
+ * The subset of the transient `RPCStatus` codes that is safe to retry
+ * automatically. RESOURCE_EXHAUSTED is left out: retrying a request that
+ * failed for lack of quota could multiply the usage that made it fail, so
+ * its failure is only evicted from the request cache, and a new attempt
+ * waits for the next caller-initiated request.
+ */
+const AUTO_RETRIABLE_RPC_STATUSES: readonly google.maps.RPCStatusString[] = [
+  'UNAVAILABLE',
+  'UNKNOWN',
+];
+
+/**
+ * Returns whether a failed Maps request should be retried automatically with
+ * a backoff, without waiting for a new caller-initiated request.
+ */
+export function isAutoRetriableRpcError(error: google.maps.MapsRequestError):
+    boolean {
+  // Widened to strings because `error.code` is not necessarily an RPCStatus.
+  return (AUTO_RETRIABLE_RPC_STATUSES as readonly string[])
+      .includes(error.code);
+}

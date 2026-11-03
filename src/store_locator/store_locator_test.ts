@@ -16,6 +16,7 @@ import {Environment} from '../testing/environment.js';
 import type {FakeMapElement} from '../testing/fake_gmp_components.js';
 import {FakeLatLng, FakeLatLngBounds} from '../testing/fake_lat_lng.js';
 import {makeFakeRouteMatrixResponse} from '../testing/fake_route_matrix.js';
+import {flushMicrotasks} from '../testing/mock_clock.js';
 import {Deferred} from '../utils/deferred.js';
 import {mapsJsData, type ComputeRouteMatrixResponse, type LatLngLiteral, type Place} from '../utils/googlemaps_types.js';
 
@@ -283,9 +284,18 @@ describe('StoreLocator', () => {
        });
        placePicker!.dispatchEvent(new Event('gmpx-placechange'));
        await env.waitForStability();
-       for (let i = 0; i < 10; i++) await Promise.resolve();
-       await env.waitForStability();
+       await flushMicrotasks();
+       // The first attempt has failed, but the error event waits for the
+       // bounded automatic retries to run out.
+       expect(listener).not.toHaveBeenCalled();
+       // Advance the mock clock past the backoff delays of the retries.
+       for (let i = 0; i < 4; i++) {
+         jasmine.clock().tick(400);
+         await flushMicrotasks();
+         await env.waitForStability();
+       }
 
+       expect(routeMatrixSpy).toHaveBeenCalledTimes(4);
        expect(listener).toHaveBeenCalledTimes(1);
        expect((listener.calls.mostRecent()?.args[0] as RequestErrorEvent).error)
            .toBe(error);
