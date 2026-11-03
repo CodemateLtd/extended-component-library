@@ -33,6 +33,12 @@ html, body {
   margin: 0;
 }
 
+/* Keeps one line's height while empty, so a message doesn't move the picker. */
+#status {
+  margin: 1rem 1rem 0;
+  min-height: 1lh;
+}
+
 gmpx-place-picker {
   --gmpx-color-surface: #fff;
   display: block;
