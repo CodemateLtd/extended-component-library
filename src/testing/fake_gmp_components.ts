@@ -38,7 +38,7 @@ export class FakeMapElement extends LitElement {
   mapId: string|null = null;
   zoom: number|null = null;
   headingInteractionDisabled: boolean|null = null;
-  internalUsageAttributionIds: Iterable<string>|null = null;
+  internalUsageAttributionIds: string[]|null = null;
   renderingType: google.maps.RenderingTypeString|null = null;
   tiltInteractionDisabled: boolean|null = null;
 }

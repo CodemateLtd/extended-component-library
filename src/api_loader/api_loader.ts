@@ -203,8 +203,8 @@ export class APILoader extends BaseComponent {
       if (APILoader.inlineScriptLoaded) {
         const changedProperty = changedProperties.keys().next().value;
         this.logger.warn(
-            `Property '${changedProperty}' cannot be updated once the ` +
-            'Google Maps JavaScript API is already loaded.');
+            `Property '${String(changedProperty)}' cannot be updated once ` +
+            'the Google Maps JavaScript API is already loaded.');
       } else {
         this.logger.warn(
             'Please remove the <gmpx-api-loader> element if you are using ' +
