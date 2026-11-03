@@ -112,6 +112,23 @@ describe('StoreLocator', () => {
        expect([...locatorRoot.children].map(x => x.tagName)).toEqual(['LINK']);
      });
 
+  it('logs an error and renders only the font loader when the core library fails to load',
+     async () => {
+       const error =
+           new Error('The Google Maps JavaScript API could not load.');
+       env.importLibrarySpy!.and.callFake(() => Promise.reject(error));
+       spyOn(console, 'error');
+
+       const {locatorRoot} =
+           await prepareState({featureSet: FeatureSet.ADVANCED});
+
+       expect(console.error)
+           .toHaveBeenCalledOnceWith(
+               '<gmpx-store-locator>: Failed to load the Google Maps JavaScript API.',
+               error);
+       expect([...locatorRoot.children].map(x => x.tagName)).toEqual(['LINK']);
+     });
+
   it('updates the map bounds for the specified listings', async () => {
     const {map} = await prepareState(
         {listings: [LISTING_A, LISTING_B], featureSet: FeatureSet.ADVANCED});

@@ -254,8 +254,14 @@ export class StoreLocator extends BaseComponent {
    * Perform one-time initialization tasks; effectively an async constructor.
    */
   private async initialize() {
-    this.mapsCoreLibrary =
-        await APILoader.importLibrary('core', this) as google.maps.CoreLibrary;
+    try {
+      this.mapsCoreLibrary = await APILoader.importLibrary('core', this) as
+          google.maps.CoreLibrary;
+    } catch (error: unknown) {
+      this.logger.error(
+          'Failed to load the Google Maps JavaScript API.', error);
+      return;
+    }
     this.initialized = true;
   }
 
