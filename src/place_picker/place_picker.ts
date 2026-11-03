@@ -441,9 +441,16 @@ export class PlacePicker extends BaseComponent {
   }
 
   private async initializeAutocomplete() {
-    const {PlaceAutocompleteElement} =
-        await APILoader.importLibrary('places', this) as
-        typeof google.maps.places;
+    let placesLibrary: typeof google.maps.places;
+    try {
+      placesLibrary = await APILoader.importLibrary('places', this) as
+          typeof google.maps.places;
+    } catch (error: unknown) {
+      const requestErrorEvent = new RequestErrorEvent(error);
+      this.dispatchEvent(requestErrorEvent);
+      return;
+    }
+    const {PlaceAutocompleteElement} = placesLibrary;
     // The picker draws its own search and clear buttons over the widget.
     const autocompleteElement =
         new PlaceAutocompleteElement({noClearButton: true, noInputIcon: true});
