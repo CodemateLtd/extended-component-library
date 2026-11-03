@@ -24,5 +24,5 @@ if [[ -z "${MAPS_API_KEY}" ]]; then
   exit 1
 fi
 
-npm --prefix $NPM_PREFIX i
+npm --prefix $NPM_PREFIX ci
 npm --prefix $NPM_PREFIX start
