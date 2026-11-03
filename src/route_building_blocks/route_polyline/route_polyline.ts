@@ -93,8 +93,16 @@ export class RoutePolyline extends RouteDataConsumer implements LatLngBounded {
   }
 
   private async initPolyline() {
-    const {Polyline} =
-        await APILoader.importLibrary('maps', this) as typeof google.maps;
+    let mapsLibrary: typeof google.maps;
+    try {
+      mapsLibrary =
+          await APILoader.importLibrary('maps', this) as typeof google.maps;
+    } catch (error: unknown) {
+      this.logger.error(
+          'Failed to load the Google Maps JavaScript API.', error);
+      return;
+    }
+    const {Polyline} = mapsLibrary;
     const polyline = new Polyline();
     this.innerPolylineDeferred.resolve(polyline);
   }
