@@ -343,6 +343,29 @@ describe('PlacePicker', () => {
     expect(picker.getBoundingClientRect().height).toBeGreaterThan(0);
   });
 
+  it(`dispatches request error event when the Places library fails to load`,
+     async () => {
+       const error =
+           new Error('The Google Maps JavaScript API could not load.');
+       env.importLibrarySpy!.and.rejectWith(error);
+       const root = env.render(html`<gmpx-place-picker></gmpx-place-picker>`);
+       const picker = root.querySelector<PlacePicker>('gmpx-place-picker')!;
+       const requestErrorEvents: Event[] = [];
+       picker.addEventListener('gmpx-requesterror', (event) => {
+         requestErrorEvents.push(event);
+       });
+       await env.waitForStability();
+
+       expect(requestErrorEvents.length).toBe(1);
+       const [requestErrorEvent] = requestErrorEvents;
+       if (!(requestErrorEvent instanceof RequestErrorEvent)) {
+         throw new Error('Expected a RequestErrorEvent');
+       }
+       expect(requestErrorEvent.error).toBe(error);
+       expect(picker.renderRoot.querySelector('gmp-place-autocomplete'))
+           .toBeNull();
+     });
+
   it(`dispatches request error event when the widget's request fails`,
      async () => {
        const {picker, autocomplete} = await prepareState();
