@@ -61,9 +61,8 @@ async function openSampleAppWithoutMaps(page, {title, port}) {
 
 for (const app of SAMPLE_APP_CONFIGS) {
   test.describe(`${app.title} failure states`, () => {
-    // No page error check: the Place Picker leaves the rejection of its
-    // library import unhandled when the Maps JavaScript API can't load.
     test('reports that Google Maps failed to load', async ({page}) => {
+      const pageErrors = collectPageErrors(page);
       await page.route(BOOTSTRAP_URL, (route) => route.abort());
 
       await openSampleAppWithoutMaps(page, app);
@@ -72,6 +71,7 @@ for (const app of SAMPLE_APP_CONFIGS) {
           .toHaveText(
               'Couldn\'t load Google Maps. ' +
               'Check your connection and reload the page.');
+      expect(await settledPageErrors(page, pageErrors)).toEqual([]);
     });
 
     // No page error check: the Maps JavaScript API itself throws uncaught
